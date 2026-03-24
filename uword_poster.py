@@ -94,8 +94,9 @@ async def post_to_uword(post_text: str) -> bool:
             await page.wait_for_selector("div.submit_btn button:not([disabled])", timeout=10000)
             await page.click("div.submit_btn button", timeout=5000)
             print("[ログインボタン] クリック")
+            await page.wait_for_url(lambda url: "login" not in url, timeout=20000)
             await page.wait_for_load_state("networkidle", timeout=20000)
-            print("[ログイン] 完了")
+            print(f"[ログイン] 完了 URL: {page.url}")
 
             print(f"[アクセス] {POST_URL}")
             await page.goto(POST_URL, wait_until="domcontentloaded", timeout=30000)
