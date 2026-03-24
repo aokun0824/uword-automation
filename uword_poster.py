@@ -99,11 +99,11 @@ async def post_to_uword(post_text: str) -> bool:
 
             print(f"[アクセス] {POST_URL}")
             await page.goto(POST_URL, wait_until="networkidle", timeout=30000)
-            await page.fill("input[name='title']", post_text[:50], timeout=10000)
+            await page.fill("ion-input[name='title'] input", post_text[:50], timeout=10000)
             print("[タイトル入力] 完了")
             await page.fill("textarea[name='content']", post_text, timeout=10000)
             print(f"[本文入力] 完了: {post_text[:40]}...")
-            await page.click("input#radio_category_1", timeout=5000)
+            await page.click("label[for='radio_category_1']", timeout=5000)
             print("[カテゴリー] 選択完了")
 
             await page.wait_for_selector(
