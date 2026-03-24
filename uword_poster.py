@@ -120,6 +120,7 @@ async def post_to_uword(post_text: str) -> bool:
             await page.click("ion-button.segment_btn_publish", timeout=5000)
             print("[投稿ボタン] クリック")
             await page.wait_for_load_state("networkidle", timeout=15000)
+            print(f"[送信後URL] {page.url}")
             print("[送信完了]")
             success = True
 
