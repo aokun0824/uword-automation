@@ -17,7 +17,7 @@ HISTORY_FILE = Path(__file__).parent / "history.txt"
 MAX_HISTORY = 10          # 参照する過去履歴の最大件数
 MAX_CHARS = 140           # 投稿文字数上限
 LOGIN_URL = "https://u-word.com/member/login"
-MODEL = "claude-haiku-4-5"  # Claude 3.5 Haiku
+MODEL = "claude-3-5-haiku-20241022"  # Claude 3.5 Haiku
 
 
 def load_history() -> list[str]:
@@ -100,12 +100,40 @@ async def post_to_uword(post_text: str) -> bool:
             print(f"[アクセス] {LOGIN_URL}")
             await page.goto(LOGIN_URL, wait_until="networkidle", timeout=30_000)
 
-            # ID 入力
-            await page.fill('input[name="login_id"], input[id*="id"], input[type="email"]', uword_id)
+            # ID 入力（複数セレクタ候補を順番に試行）
+            id_selectors = [
+                'input[name="login_id"]',
+                'input[name="email"]',
+                'input[type="email"]',
+                'input[id*="login"]',
+                'input[id*="id"]',
+            ]
+            for sel in id_selectors:
+                try:
+                    await page.fill(sel, uword_id, timeout=3_000)
+                    print(f"[ID入力] {sel}")
+                    break
+                except Exception:
+                    continue
+
             # PW 入力
-            await page.fill('input[name="password"], input[type="password"]', uword_pw)
-            # ログインボタン
-            await page.click('button[type="submit"], input[type="submit"], a:has-text("ログイン")')
+            await page.fill('input[type="password"]', uword_pw)
+            print("[PW入力] 完了")
+
+            # ログインボタン（複数候補を順番に試行）
+            login_selectors = [
+                'button[type="submit"]',
+                'input[type="submit"]',
+                'button:has-text("ログイン")',
+                'a:has-text("ログイン")',
+            ]
+            for sel in login_selectors:
+                try:
+                    await page.click(sel, timeout=3_000)
+                    print(f"[ログインボタン] {sel}")
+                    break
+                except Exception:
+                    continue
             await page.wait_for_load_state("networkidle", timeout=20_000)
             print("[ログイン] 完了")
 

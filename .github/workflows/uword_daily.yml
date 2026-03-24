@@ -10,6 +10,8 @@ on:
 jobs:
   post:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Node.js 24を強制使用（警告解消）
     permissions:
       contents: write   # history.txt のコミット・プッシュに必要
 
@@ -34,6 +36,14 @@ jobs:
           UWORD_ID: ${{ secrets.UWORD_ID }}
           UWORD_PW: ${{ secrets.UWORD_PW }}
         run: python uword_poster.py
+
+      - name: エラースクリーンショットをアップロード（失敗時）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-screenshot
+          path: error_screenshot.png
+          if-no-files-found: ignore
 
       - name: history.txt をコミット＆プッシュ
         run: |
