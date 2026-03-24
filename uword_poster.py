@@ -99,7 +99,11 @@ async def post_to_uword(post_text: str) -> bool:
 
             print(f"[アクセス] {POST_URL}")
             await page.goto(POST_URL, wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(10000)  # Angular初期化待ち
+            await page.wait_for_timeout(5000)  # Angular初期化待ち
+            print(f"[現在URL] {page.url}")
+            print(f"[ページタイトル] {await page.title()}")
+            html_snippet = await page.content()
+            print(f"[HTML冒頭500文字] {html_snippet[:500]}")
             await page.wait_for_selector("ion-input[name='title'] input", state="visible", timeout=30000)
             await page.fill("ion-input[name='title'] input", post_text[:50], timeout=10000)
             print("[タイトル入力] 完了")
