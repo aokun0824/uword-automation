@@ -17,7 +17,7 @@ MAX_HISTORY = 10
 MAX_CHARS = 140
 LOGIN_URL = "https://u-word.com/horby/login"
 POST_URL = "https://u-word.com/horby/myPage/realTimePost"
-MODEL = "claude-3-5-haiku-20241022"
+MODEL = "claude-haiku-4-5"
 
 
 def load_history() -> list[str]:
