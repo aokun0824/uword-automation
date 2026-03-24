@@ -98,10 +98,9 @@ async def post_to_uword(post_text: str) -> bool:
             print("[ログイン] 完了")
 
             print(f"[アクセス] {POST_URL}")
-            await page.goto(POST_URL, wait_until="networkidle", timeout=30000)
-            await page.wait_for_timeout(3000)  # Angular初期化待ち
-            await page.wait_for_timeout(3000)
-            await page.wait_for_selector("ion-input[name='title'] input", state="visible", timeout=15000)
+            await page.goto(POST_URL, wait_until="domcontentloaded", timeout=30000)
+            await page.wait_for_timeout(10000)  # Angular初期化待ち
+            await page.wait_for_selector("ion-input[name='title'] input", state="visible", timeout=30000)
             await page.fill("ion-input[name='title'] input", post_text[:50], timeout=10000)
             print("[タイトル入力] 完了")
             await page.fill("textarea[name='content']", post_text, timeout=10000)
