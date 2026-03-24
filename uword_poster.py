@@ -17,7 +17,7 @@ MAX_HISTORY = 10
 MAX_CHARS = 140
 LOGIN_URL = "https://u-word.com/horby/login"
 POST_URL = "https://u-word.com/horby/myPage/realTimePost"
-MODEL = "claude-haiku-4-5"
+MODEL = "claude-3-5-haiku-20241022"
 
 
 def load_history() -> list[str]:
@@ -98,7 +98,8 @@ async def post_to_uword(post_text: str) -> bool:
             print("[ログイン] 完了")
 
             print(f"[アクセス] {POST_URL}")
-            await page.goto(POST_URL, wait_until="networkidle", timeout=30000)
+            await page.goto(POST_URL, wait_until="domcontentloaded", timeout=30000)
+            await page.wait_for_selector("ion-input[name='title'] input", state="visible", timeout=20000)
             await page.fill("ion-input[name='title'] input", post_text[:50], timeout=10000)
             print("[タイトル入力] 完了")
             await page.fill("textarea[name='content']", post_text, timeout=10000)
