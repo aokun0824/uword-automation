@@ -19,6 +19,7 @@ TITLE_MAX = 30
 BODY_MAX = 140
 LOGIN_URL = "https://u-word.com/horby/login"
 POST_URL = "https://u-word.com/horby/myPage/realTimePost"
+EDIT_REDIRECT_URL = "realTimeEdit"
 MODEL = "claude-haiku-4-5"
 
 # Google News RSS（AI関連ニュース 日本語）
@@ -166,6 +167,7 @@ async def post_to_uword(title: str, body: str) -> bool:
             print(f"[現在URL] {page.url}")
             print(f"[ページタイトル] {await page.title()}")
 
+            await page.wait_for_url(lambda url: "realTimePost" in url or "realTimeEdit" in url, timeout=10000)
             await page.wait_for_selector("ion-input[name='title'] input", state="visible", timeout=30000)
             await page.fill("ion-input[name='title'] input", title, timeout=10000)
             print(f"[タイトル入力] 完了: {title}")
