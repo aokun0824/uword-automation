@@ -37,12 +37,15 @@ jobs:
           UWORD_PW: ${{ secrets.UWORD_PW }}
         run: python uword_poster.py
 
-      - name: エラースクリーンショットをアップロード（失敗時）
-        if: failure()
+      - name: スクリーンショットをアップロード
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: error-screenshot
-          path: error_screenshot.png
+          name: screenshots
+          path: |
+            error_screenshot.png
+            after_click.png
+            after_submit.png
           if-no-files-found: ignore
 
       - name: history.txt をコミット＆プッシュ
