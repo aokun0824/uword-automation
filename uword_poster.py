@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 ユーワード自動投稿スクリプト
-EGAO Works（えがおワークス）のサービス宣伝 × 今日のAIニュース
+EGAO Works（えがおワークス）× 今日の実際のAIニュース
 """
 import os
 import sys
 import asyncio
+import feedparser
 from datetime import datetime
 from pathlib import Path
 import anthropic
@@ -18,10 +19,31 @@ TITLE_MAX = 30
 BODY_MAX = 140
 LOGIN_URL = "https://u-word.com/horby/login"
 POST_URL = "https://u-word.com/horby/myPage/realTimePost"
-SERVICE_URL = "https://u-word.com/horby/store/storeDetail/134041"
 MODEL = "claude-haiku-4-5"
 
-LINE_URL = "YOUR_LINE_URL_HERE"  # ← 後でLINEのURLに差し替えてください
+# Google News RSS（AI関連ニュース 日本語）
+RSS_FEEDS = [
+    "https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja",
+    "https://news.google.com/rss/search?q=ChatGPT+生成AI&hl=ja&gl=JP&ceid=JP:ja",
+]
+
+
+def fetch_news(max_items: int = 5) -> list[str]:
+    """RSSから最新ニュースタイトルを取得する"""
+    headlines = []
+    for url in RSS_FEEDS:
+        try:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:max_items]:
+                title = entry.get("title", "").strip()
+                if title and title not in headlines:
+                    headlines.append(title)
+        except Exception as e:
+            print(f"[RSS取得エラー] {url}: {e}", file=sys.stderr)
+    print(f"[ニュース取得] {len(headlines)} 件")
+    for h in headlines[:5]:
+        print(f"  - {h}")
+    return headlines[:5]
 
 
 def load_history() -> list[str]:
@@ -39,24 +61,30 @@ def save_history(title: str, body: str) -> None:
     print(f"[履歴保存] {entry[:50]}...")
 
 
-def generate_post(history: list[str]) -> tuple[str, str]:
+def generate_post(history: list[str], news: list[str]) -> tuple[str, str]:
     """タイトルと本文を別々に生成して返す"""
     client = anthropic.Anthropic()
     history_block = "\n".join(f"- {h}" for h in history) if history else "（履歴なし）"
+    news_block = "\n".join(f"- {n}" for n in news) if news else "（ニュース取得なし）"
 
-    prompt = f"""あなたはEGAO Works（えがおワークス）のSNS担当です。
-EGAO Worksは初心者・個人事業主向けに、AIを活用したデザイン・HP・チラシ制作・アプリ開発・デジタルサポート・AI講座を提供しています。
+    prompt = f"""あなたはEGAO Works（えがおワークス）のSNS担当スタッフです。
+えがおワークスは、AIを活用したデザイン・HP・チラシ制作・アプリ開発・デジタルサポート・AI講座を提供している、初心者や個人事業主向けのサービスです。
 
-今日のAIやデジタルに関する旬なトピックを1つ取り上げ、それをきっかけにEGAO Worksのサービスへ自然に誘導する投稿を作ってください。
+【今日の実際のAIニュース（RSS取得）】
+{news_block}
 
-【出力形式】必ず以下の形式で出力すること（余計な説明は不要）：
-TITLE: （ここに見出し・25文字以内）
-BODY: （ここに本文・140文字以内）
+上のニュースの中から1つ選び、それをきっかけに「えがおワークスに相談しよう」と思ってもらえるような投稿を作ってください。
 
-【本文のルール】
-- 今日のAI/デジタルトレンドに触れる（例：画像生成AI、ChatGPT活用、SNS自動化など）
-- 「初心者でも大丈夫」「プロに任せてラクに」など安心感のある言葉を入れる
-- EGAO Worksへの誘導で締める（「えがおワークスにご相談ください」「えがおワークスがサポートします」など）
+【出力形式】必ず以下の形式のみで出力（余計な説明・前置き・コメントは一切不要）：
+TITLE: （見出し・25文字以内）
+BODY: （本文・140文字以内）
+
+【文体・内容のルール】
+- 友達に話しかけるような、自然でやわらかい口語調で書く（「〜ですよね」「〜って知ってましたか？」など）
+- 「AI」「ChatGPT」など話題のキーワードを使って共感を引き出す
+- 「初心者でも大丈夫」「難しく考えなくていい」など安心できる言葉を入れる
+- 最後はえがおワークスへの自然な誘導で締める（「えがおワークスに気軽に相談してみてください」「えがおワークスがそのお手伝いをします」など）
+- 「速報」「リアルタイム」のような仰々しい言葉は使わない
 - URLやハッシュタグは不要
 - 過去投稿との重複を避ける
 
@@ -73,7 +101,6 @@ BODY: （ここに本文・140文字以内）
     raw = message.content[0].text.strip()
     print(f"[Claude生成結果]\n{raw}")
 
-    # TITLE: と BODY: をパース
     title = ""
     body = ""
     for line in raw.splitlines():
@@ -82,13 +109,11 @@ BODY: （ここに本文・140文字以内）
         elif line.startswith("BODY:"):
             body = line.replace("BODY:", "").strip()
 
-    # フォールバック（パース失敗時）
     if not title:
         title = raw[:25]
     if not body:
         body = raw
 
-    # 文字数制限
     if len(title) > TITLE_MAX:
         title = title[:TITLE_MAX]
     if len(body) > BODY_MAX:
@@ -135,7 +160,7 @@ async def post_to_uword(title: str, body: str) -> bool:
 
             print(f"[アクセス] {POST_URL}")
             await page.goto(POST_URL, wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(5000)  # Angular初期化待ち
+            await page.wait_for_timeout(5000)
             print(f"[現在URL] {page.url}")
             print(f"[ページタイトル] {await page.title()}")
 
@@ -178,8 +203,9 @@ async def main():
     print(f"=== EGAO Works 自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
     history = load_history()
     print(f"[履歴] {len(history)} 件を参照")
+    news = fetch_news()
     print("[Claude API] 投稿文を生成中...")
-    title, body = generate_post(history)
+    title, body = generate_post(history, news)
     print(f"[タイトル] {title}")
     print(f"[本文] {body}")
     print("[Playwright] ブラウザ操作を開始...")
