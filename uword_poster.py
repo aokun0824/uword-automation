@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ユーワード自動投稿スクリプト
-Claude 3.5 Haiku で速報文を生成し、Playwright でユーワードに投稿する
+EGAO Works（えがおワークス）のサービス宣伝 × 今日のAIニュース
 """
 import os
 import sys
@@ -14,10 +14,14 @@ from playwright.async_api import async_playwright, TimeoutError as PlaywrightTim
 # ===== 設定 =====
 HISTORY_FILE = Path(__file__).parent / "history.txt"
 MAX_HISTORY = 10
-MAX_CHARS = 140
+TITLE_MAX = 30
+BODY_MAX = 140
 LOGIN_URL = "https://u-word.com/horby/login"
 POST_URL = "https://u-word.com/horby/myPage/realTimePost"
+SERVICE_URL = "https://u-word.com/horby/store/storeDetail/134041"
 MODEL = "claude-haiku-4-5"
+
+LINE_URL = "YOUR_LINE_URL_HERE"  # ← 後でLINEのURLに差し替えてください
 
 
 def load_history() -> list[str]:
@@ -28,41 +32,72 @@ def load_history() -> list[str]:
     return entries[-MAX_HISTORY:]
 
 
-def save_history(text: str) -> None:
+def save_history(title: str, body: str) -> None:
+    entry = f"[タイトル]{title} [本文]{body[:40]}"
     with HISTORY_FILE.open("a", encoding="utf-8") as f:
-        f.write(text.strip() + "\n")
-    print(f"[履歴保存] {text[:30]}...")
+        f.write(entry.strip() + "\n")
+    print(f"[履歴保存] {entry[:50]}...")
 
 
-def generate_post(history: list[str]) -> str:
+def generate_post(history: list[str]) -> tuple[str, str]:
+    """タイトルと本文を別々に生成して返す"""
     client = anthropic.Anthropic()
     history_block = "\n".join(f"- {h}" for h in history) if history else "（履歴なし）"
-    prompt = f"""あなたはユーワード（SNS）のリアルタイム速報担当です。
-以下の過去投稿と重複しない、新鮮で読者の関心を引く速報文を1件だけ生成してください。
 
-【制約】
-- 140文字以内（日本語）
-- 過去投稿との内容・表現の重複を避ける
-- 「速報」「リアルタイム」らしい臨場感のある文体
+    prompt = f"""あなたはEGAO Works（えがおワークス）のSNS担当です。
+EGAO Worksは初心者・個人事業主向けに、AIを活用したデザイン・HP・チラシ制作・アプリ開発・デジタルサポート・AI講座を提供しています。
+
+今日のAIやデジタルに関する旬なトピックを1つ取り上げ、それをきっかけにEGAO Worksのサービスへ自然に誘導する投稿を作ってください。
+
+【出力形式】必ず以下の形式で出力すること（余計な説明は不要）：
+TITLE: （ここに見出し・25文字以内）
+BODY: （ここに本文・140文字以内）
+
+【本文のルール】
+- 今日のAI/デジタルトレンドに触れる（例：画像生成AI、ChatGPT活用、SNS自動化など）
+- 「初心者でも大丈夫」「プロに任せてラクに」など安心感のある言葉を入れる
+- EGAO Worksへの誘導で締める（「えがおワークスにご相談ください」「えがおワークスがサポートします」など）
 - URLやハッシュタグは不要
-- 生成文のみを出力すること（説明文・前置きは不要）
+- 過去投稿との重複を避ける
 
 【過去の投稿履歴（直近{MAX_HISTORY}件）】
 {history_block}
 
-速報文:"""
+投稿:"""
+
     message = client.messages.create(
         model=MODEL,
-        max_tokens=256,
+        max_tokens=300,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = message.content[0].text.strip()
-    if len(text) > MAX_CHARS:
-        text = text[:MAX_CHARS]
-    return text
+    raw = message.content[0].text.strip()
+    print(f"[Claude生成結果]\n{raw}")
+
+    # TITLE: と BODY: をパース
+    title = ""
+    body = ""
+    for line in raw.splitlines():
+        if line.startswith("TITLE:"):
+            title = line.replace("TITLE:", "").strip()
+        elif line.startswith("BODY:"):
+            body = line.replace("BODY:", "").strip()
+
+    # フォールバック（パース失敗時）
+    if not title:
+        title = raw[:25]
+    if not body:
+        body = raw
+
+    # 文字数制限
+    if len(title) > TITLE_MAX:
+        title = title[:TITLE_MAX]
+    if len(body) > BODY_MAX:
+        body = body[:BODY_MAX]
+
+    return title, body
 
 
-async def post_to_uword(post_text: str) -> bool:
+async def post_to_uword(title: str, body: str) -> bool:
     uword_id = os.environ.get("UWORD_ID")
     uword_pw = os.environ.get("UWORD_PW")
     if not uword_id or not uword_pw:
@@ -103,13 +138,14 @@ async def post_to_uword(post_text: str) -> bool:
             await page.wait_for_timeout(5000)  # Angular初期化待ち
             print(f"[現在URL] {page.url}")
             print(f"[ページタイトル] {await page.title()}")
-            html_snippet = await page.content()
-            print(f"[HTML冒頭500文字] {html_snippet[:500]}")
+
             await page.wait_for_selector("ion-input[name='title'] input", state="visible", timeout=30000)
-            await page.fill("ion-input[name='title'] input", post_text[:50], timeout=10000)
-            print("[タイトル入力] 完了")
-            await page.fill("textarea[name='content']", post_text, timeout=10000)
-            print(f"[本文入力] 完了: {post_text[:40]}...")
+            await page.fill("ion-input[name='title'] input", title, timeout=10000)
+            print(f"[タイトル入力] 完了: {title}")
+
+            await page.fill("textarea[name='content']", body, timeout=10000)
+            print(f"[本文入力] 完了: {body[:40]}...")
+
             await page.click("label[for='radio_category_1']", timeout=5000)
             print("[カテゴリー] 選択完了")
 
@@ -139,15 +175,16 @@ async def post_to_uword(post_text: str) -> bool:
 
 
 async def main():
-    print(f"=== ユーワード自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
+    print(f"=== EGAO Works 自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
     history = load_history()
     print(f"[履歴] {len(history)} 件を参照")
-    print("[Claude API] 速報文を生成中...")
-    post_text = generate_post(history)
-    print(f"[生成テキスト] {post_text}")
+    print("[Claude API] 投稿文を生成中...")
+    title, body = generate_post(history)
+    print(f"[タイトル] {title}")
+    print(f"[本文] {body}")
     print("[Playwright] ブラウザ操作を開始...")
-    await post_to_uword(post_text)
-    save_history(post_text)
+    await post_to_uword(title, body)
+    save_history(title, body)
     print("=== 投稿完了 ===")
 
 
