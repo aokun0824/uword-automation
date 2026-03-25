@@ -116,6 +116,8 @@ BODY: （本文・140文字以内）
 
     if len(title) > TITLE_MAX:
         title = title[:TITLE_MAX]
+    prefix = "【この投稿はAIで自動投稿しています】\n"
+    body = prefix + body
     if len(body) > BODY_MAX:
         body = body[:BODY_MAX]
 
