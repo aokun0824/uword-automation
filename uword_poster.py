@@ -132,7 +132,7 @@ BODY: （本文・{post_cfg['body_max']}文字以内）
 
     if len(title) > post_cfg["title_max"]:
         title = title[:post_cfg["title_max"]]
-    body = post_cfg["prefix"] + body
+    body = post_cfg["prefix"].replace("\\n", "\n") + body
     if len(body) > post_cfg["body_max"]:
         body = body[:post_cfg["body_max"]]
 
@@ -268,7 +268,7 @@ async def main():
     if manual_title and manual_body:
         print("[モード] 手動投稿文を使用")
         title = manual_title
-        body  = config["post"]["prefix"] + manual_body
+        body  = config["post"]["prefix"].replace("\\n", "\n") + manual_body
         if len(body) > config["post"]["body_max"]:
             body = body[:config["post"]["body_max"]]
         use_manual = True
