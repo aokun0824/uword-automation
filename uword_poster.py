@@ -160,11 +160,16 @@ BODY: （本文・{post_cfg['body_max']}文字以内）
 
     title = ""
     body  = ""
-    for line in raw.splitlines():
+    lines = raw.splitlines()
+    for i, line in enumerate(lines):
         if line.startswith("TITLE:"):
             title = line.replace("TITLE:", "").strip()
         elif line.startswith("BODY:"):
-            body = line.replace("BODY:", "").strip()
+            # BODY: 以降の全行を本文として取得
+            first_line = line.replace("BODY:", "").strip()
+            remaining = "\n".join(lines[i + 1:]).strip()
+            body = f"{first_line}\n{remaining}".strip() if remaining else first_line
+            break
 
     if not title:
         title = raw[:post_cfg["title_max"]]
