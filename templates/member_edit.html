@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}設定編集 — {{ config.profile.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  {% if is_admin %}
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  {% endif %}
+  <div>
+    <h4 class="fw-bold mb-0">{{ config.profile.name }}</h4>
+    <span class="badge bg-secondary badge-slug">{{ slug }}</span>
+  </div>
+  <a href="{{ url_for('member_history', slug=slug) }}" class="btn btn-outline-secondary btn-sm ms-auto">
+    <i class="bi bi-clock-history me-1"></i>投稿履歴
+  </a>
+</div>
+
+<form method="post">
+  <!-- プロフィール -->
+  <div class="card mb-4">
+    <div class="card-header py-3">
+      <h5 class="mb-0"><i class="bi bi-person-badge me-2 text-primary"></i>プロフィール</h5>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">店舗・サービス名 <span class="text-danger">*</span></label>
+        <input type="text" name="profile_name" class="form-control"
+               value="{{ config.profile.name }}" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">サービス説明</label>
+        <textarea name="profile_description" class="form-control" rows="2">{{ config.profile.description }}</textarea>
+        <div class="form-text">投稿のトーンに影響します（例: リラクゼーションサロンで〜を提供しています）</div>
+      </div>
+      <div class="mb-0">
+        <label class="form-label fw-semibold">締め文（CTA）</label>
+        <input type="text" name="profile_cta" class="form-control"
+               value="{{ config.profile.cta }}"
+               placeholder="例: お気軽にご相談ください">
+        <div class="form-text">投稿の最後に自動で追加される誘導文</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- スケジュール -->
+  <div class="card mb-4">
+    <div class="card-header py-3">
+      <h5 class="mb-0"><i class="bi bi-clock me-2 text-primary"></i>投稿スケジュール</h5>
+    </div>
+    <div class="card-body">
+      <div class="mb-0">
+        <label class="form-label fw-semibold">投稿時刻（JST・カンマ区切り）</label>
+        <input type="text" name="schedule_times" class="form-control"
+               value="{{ config.schedule.times | join(', ') }}"
+               placeholder="例: 09:00, 21:00">
+        <div class="form-text">GitHub Actions のワークフローに合わせて設定してください（現在: UTC 0:00 / 12:00 = JST 9:00 / 21:00）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 投稿設定 -->
+  <div class="card mb-4">
+    <div class="card-header py-3">
+      <h5 class="mb-0"><i class="bi bi-chat-text me-2 text-primary"></i>投稿設定</h5>
+    </div>
+    <div class="card-body">
+      <div class="mb-0">
+        <label class="form-label fw-semibold">投稿プレフィックス</label>
+        <input type="text" name="post_prefix" class="form-control"
+               value="{{ config.post.prefix | replace('\n', '\\n') }}">
+        <div class="form-text">投稿本文の冒頭に自動で付与されます（\n は改行）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RSS -->
+  <div class="card mb-4">
+    <div class="card-header py-3">
+      <h5 class="mb-0"><i class="bi bi-rss me-2 text-primary"></i>RSSフィード</h5>
+    </div>
+    <div class="card-body">
+      <label class="form-label fw-semibold">フィードURL（1行に1件）</label>
+      <textarea name="rss_feeds" class="form-control" rows="4"
+                placeholder="https://news.google.com/rss/search?q=...">{{ config.rss.feeds | join('\n') }}</textarea>
+      <div class="form-text mt-1">
+        取得したニュースをもとに投稿内容を生成します。業種に合ったキーワードを設定してください。<br>
+        例: <code>https://news.google.com/rss/search?q=美容+トレンド&amp;hl=ja&amp;gl=JP&amp;ceid=JP:ja</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- 文体ルール -->
+  <div class="card mb-4">
+    <div class="card-header py-3">
+      <h5 class="mb-0"><i class="bi bi-pen me-2 text-primary"></i>投稿の文体・トーン</h5>
+    </div>
+    <div class="card-body">
+      <label class="form-label fw-semibold">ルール（1行に1件）</label>
+      <textarea name="prompt_tone" class="form-control" rows="7">{{ config.prompt.tone | join('\n') }}</textarea>
+      <div class="form-text">AIへの指示として使われます。ブランドの雰囲気に合わせてカスタマイズできます</div>
+    </div>
+  </div>
+
+  {% if is_admin %}
+  <!-- 管理者専用設定 -->
+  <div class="card mb-4 border border-warning">
+    <div class="card-header py-3 bg-warning-subtle">
+      <h5 class="mb-0"><i class="bi bi-shield-lock me-2 text-warning"></i>管理者専用設定</h5>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">ユーワード ユーザーパス</label>
+        <input type="text" name="uword_user_path" class="form-control"
+               value="{{ config.uword.user_path }}"
+               placeholder="例: horby">
+        <div class="form-text">ユーワードのマイページURL内のパス（例: u-word.com/<b>horby</b>/login）</div>
+      </div>
+      <div class="mb-0">
+        <label class="form-label fw-semibold">AIモデル</label>
+        <select name="ai_model" class="form-select">
+          <option value="claude-haiku-4-5" {% if config.ai.model == 'claude-haiku-4-5' %}selected{% endif %}>claude-haiku-4-5（高速・低コスト）</option>
+          <option value="claude-sonnet-4-5" {% if config.ai.model == 'claude-sonnet-4-5' %}selected{% endif %}>claude-sonnet-4-5（高品質）</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="d-grid">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="bi bi-cloud-arrow-up me-1"></i>設定を保存（GitHubに自動コミット）
+    </button>
+  </div>
+</form>
+{% endblock %}

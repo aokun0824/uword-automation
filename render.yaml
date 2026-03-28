@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: uword-admin
+    runtime: python
+    buildCommand: pip install -r requirements-admin.txt
+    startCommand: gunicorn admin:app
+    envVars:
+      - key: FLASK_SECRET_KEY
+        generateValue: true          # Render が自動生成
+      - key: ADMIN_PASSWORD
+        sync: false                  # Render ダッシュボードで手動設定
+      - key: GH_TOKEN
+        sync: false                  # GitHub PAT（contents:write 権限）
+      - key: GITHUB_REPO
+        value: aokun0824/uword-automation

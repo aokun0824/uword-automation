@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}ログイン — ユーワード自動投稿{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-sm-10 col-md-6 col-lg-5">
+    <div class="text-center mb-4">
+      <i class="bi bi-robot text-primary" style="font-size:3rem"></i>
+      <h4 class="fw-bold mt-2">ユーワード自動投稿</h4>
+      <p class="text-muted small">ログインして設定を管理できます</p>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">ユーザー名</label>
+            <input type="text" name="username" class="form-control form-control-lg"
+                   placeholder="admin または会員ID" autofocus required>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">パスワード</label>
+            <input type="password" name="password" class="form-control form-control-lg" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg w-100">
+            <i class="bi bi-box-arrow-in-right me-1"></i>ログイン
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

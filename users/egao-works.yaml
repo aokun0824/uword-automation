@@ -32,6 +32,9 @@ ai:
   model: "claude-haiku-4-5"
   max_tokens: 300
 
+auth:
+  password_hash: ""  # 管理画面の「PW設定」から設定してください
+
 prompt:
   tone:
     - "友達に話しかけるような、自然でやわらかい口語調で書く（「〜ですよね」「〜って知ってましたか？」など）"

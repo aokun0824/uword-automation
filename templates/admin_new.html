@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}新規会員追加 — ユーワード自動投稿{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h4 class="fw-bold mb-0"><i class="bi bi-person-plus me-2 text-primary"></i>新規会員を追加</h4>
+</div>
+
+<div class="card">
+  <div class="card-body p-4">
+    <form method="post">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">会員スラグ <span class="text-danger">*</span></label>
+          <input type="text" name="slug" class="form-control"
+                 placeholder="例: tanaka-salon" required
+                 pattern="[a-z0-9\-]+"
+                 title="小文字英数字とハイフンのみ">
+          <div class="form-text">URLとファイル名に使用します（小文字英数字・ハイフンのみ）</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">ユーワード ユーザーパス <span class="text-danger">*</span></label>
+          <input type="text" name="user_path" class="form-control"
+                 placeholder="例: horby" required>
+          <div class="form-text">u-word.com/<b>horby</b>/login のパス部分</div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">店舗・サービス名 <span class="text-danger">*</span></label>
+          <input type="text" name="name" class="form-control"
+                 placeholder="例: 田中リラクゼーションサロン" required>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">サービス説明</label>
+          <textarea name="description" class="form-control" rows="2"
+                    placeholder="例: 肩こり・腰痛に特化したリラクゼーションサロンです"></textarea>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">締め文（CTA）</label>
+          <input type="text" name="cta" class="form-control"
+                 value="お気軽にご相談ください">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">ログインパスワード <span class="text-danger">*</span></label>
+          <input type="password" name="password" class="form-control" required minlength="6">
+          <div class="form-text">会員がWeb UIにログインするためのパスワード</div>
+        </div>
+      </div>
+
+      <hr class="my-4">
+
+      <div class="alert alert-info small">
+        <i class="bi bi-info-circle me-1"></i>
+        作成後、GitHub Actions の Secrets に以下を登録してください:<br>
+        <code>UWORD_ID_{スラグ大文字}</code> / <code>UWORD_PW_{スラグ大文字}</code><br>
+        また、<code>.github/workflows/uword_daily.yml</code> に会員のステップを追加してください。
+      </div>
+
+      <div class="d-flex gap-2 justify-content-end">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">キャンセル</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-person-check me-1"></i>会員を作成
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

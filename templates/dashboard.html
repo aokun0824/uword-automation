@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}ダッシュボード — ユーワード自動投稿{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0"><i class="bi bi-grid me-2 text-primary"></i>会員一覧</h4>
+  <a href="{{ url_for('admin_new') }}" class="btn btn-primary">
+    <i class="bi bi-person-plus me-1"></i>新規会員を追加
+  </a>
+</div>
+
+{% if members %}
+<div class="row g-3">
+  {% for slug, config in members.items() %}
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between mb-2">
+          <div>
+            <h5 class="fw-bold mb-0">{{ config.profile.name }}</h5>
+            <span class="badge bg-secondary badge-slug">{{ slug }}</span>
+          </div>
+          <span class="badge bg-success-subtle text-success border border-success-subtle">
+            <i class="bi bi-check-circle me-1"></i>稼働中
+          </span>
+        </div>
+        <p class="text-muted small mb-3">{{ config.profile.description[:60] }}{% if config.profile.description|length > 60 %}…{% endif %}</p>
+
+        <div class="small text-muted mb-3">
+          <i class="bi bi-clock me-1"></i>
+          投稿時刻: {{ config.schedule.times | join(", ") }}
+          &nbsp;|&nbsp;
+          <i class="bi bi-rss me-1"></i>
+          RSSフィード {{ config.rss.feeds | length }}件
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ url_for('member_edit', slug=slug) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-pencil me-1"></i>設定編集
+          </a>
+          <a href="{{ url_for('member_history', slug=slug) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-clock-history me-1"></i>投稿履歴
+          </a>
+
+          <!-- パスワードリセット -->
+          <button class="btn btn-sm btn-outline-warning"
+                  data-bs-toggle="modal" data-bs-target="#pwModal{{ loop.index }}">
+            <i class="bi bi-key me-1"></i>PW設定
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- パスワード設定モーダル -->
+  <div class="modal fade" id="pwModal{{ loop.index }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-3">
+        <div class="modal-header">
+          <h5 class="modal-title">パスワード設定 — {{ slug }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form method="post" action="{{ url_for('admin_set_password', slug=slug) }}">
+          <div class="modal-body">
+            <label class="form-label">新しいパスワード</label>
+            <input type="password" name="password" class="form-control" required minlength="6">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+            <button type="submit" class="btn btn-warning">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-people" style="font-size:3rem"></i>
+    <p class="mt-3">まだ会員がいません。「新規会員を追加」から始めましょう。</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
