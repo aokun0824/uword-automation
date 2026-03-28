@@ -14,12 +14,11 @@
     <form method="post">
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label fw-semibold">会員スラグ <span class="text-danger">*</span></label>
-          <input type="text" name="slug" class="form-control"
-                 placeholder="例: tanaka-salon" required
-                 pattern="[a-z0-9\-]+"
-                 title="小文字英数字とハイフンのみ">
-          <div class="form-text">URLとファイル名に使用します（小文字英数字・ハイフンのみ）</div>
+          <label class="form-label fw-semibold">会員番号 <span class="text-danger">*</span></label>
+          <input type="text" name="member_no" class="form-control"
+                 placeholder="例: 83900" required
+                 pattern="[0-9]+" inputmode="numeric" maxlength="10">
+          <div class="form-text">ユーワードの会員番号（数字のみ）</div>
         </div>
 
         <div class="col-md-6">
@@ -58,9 +57,8 @@
 
       <div class="alert alert-info small">
         <i class="bi bi-info-circle me-1"></i>
-        作成後、GitHub Actions の Secrets に以下を登録してください:<br>
-        <code>UWORD_ID_{スラグ大文字}</code> / <code>UWORD_PW_{スラグ大文字}</code><br>
-        また、<code>.github/workflows/uword_daily.yml</code> に会員のステップを追加してください。
+        作成後、<code>.github/workflows/uword_daily.yml</code> に会員のステップを追加してください。<br>
+        認証情報は暗号化されてYAMLに保存されるため、個別のGitHub Secretsは不要です。
       </div>
 
       <div class="d-flex gap-2 justify-content-end">

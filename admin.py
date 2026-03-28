@@ -192,22 +192,22 @@ def logout():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        uword_id  = request.form.get("uword_id", "").strip()
-        uword_pw  = request.form.get("uword_pw", "").strip()
-        user_path = request.form.get("user_path", "").strip()
-        name      = request.form.get("name", "").strip()
+        member_no   = request.form.get("member_no", "").strip()
+        uword_id    = request.form.get("uword_id", "").strip()
+        uword_pw    = request.form.get("uword_pw", "").strip()
+        user_path   = request.form.get("user_path", "").strip()
+        name        = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
-        cta       = request.form.get("cta", "お気軽にご相談ください").strip()
+        cta         = request.form.get("cta", "お気軽にご相談ください").strip()
 
-        if not all([uword_id, uword_pw, user_path, name]):
+        if not all([member_no, uword_id, uword_pw, user_path, name]):
             flash("すべての必須項目を入力してください", "danger")
             return render_template("register.html")
 
-        # スラグ = ユーワードID をそのまま使う（英数字・ハイフン以外は除去）
         import re
-        slug = re.sub(r"[^a-zA-Z0-9\-]", "", uword_id.lower().replace("_", "-").replace(" ", "-"))
+        slug = re.sub(r"[^0-9]", "", member_no)  # 数字のみ
         if not slug:
-            flash("ユーワードIDに使用できない文字が含まれています", "danger")
+            flash("会員番号は数字のみ入力してください", "danger")
             return render_template("register.html")
 
         existing, _ = gh_read_yaml(f"users/{slug}.yaml")
@@ -256,13 +256,15 @@ def admin_new():
     if not is_admin(): return redirect(url_for("index"))
 
     if request.method == "POST":
-        slug      = request.form.get("slug", "").strip().lower().replace(" ", "-")
+        import re
+        member_no = re.sub(r"[^0-9]", "", request.form.get("member_no", "").strip())
         name      = request.form.get("name", "").strip()
         user_path = request.form.get("user_path", "").strip()
         uword_id  = request.form.get("uword_id", "").strip()
         uword_pw  = request.form.get("uword_pw", "").strip()
+        slug      = member_no
 
-        if not all([slug, name, user_path, uword_id, uword_pw]):
+        if not all([member_no, name, user_path, uword_id, uword_pw]):
             flash("すべての項目を入力してください", "danger")
             return render_template("admin_new.html")
 

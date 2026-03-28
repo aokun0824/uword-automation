@@ -16,10 +16,15 @@
 
           <h6 class="fw-bold text-primary mb-3"><i class="bi bi-key me-1"></i>ユーワードのログイン情報</h6>
           <div class="mb-3">
+            <label class="form-label fw-semibold">会員番号 <span class="text-danger">*</span></label>
+            <input type="text" name="member_no" class="form-control" required autofocus
+                   placeholder="例: 83900" pattern="[0-9]+" inputmode="numeric" maxlength="10">
+            <div class="form-text">この番号が管理画面のログインIDになります</div>
+          </div>
+          <div class="mb-3">
             <label class="form-label fw-semibold">ユーワード ログインID <span class="text-danger">*</span></label>
-            <input type="text" name="uword_id" class="form-control" required autofocus
+            <input type="text" name="uword_id" class="form-control" required
                    placeholder="ユーワードにログインする際のID">
-            <div class="form-text">このIDが管理画面のユーザー名になります</div>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">ユーワード パスワード <span class="text-danger">*</span></label>
