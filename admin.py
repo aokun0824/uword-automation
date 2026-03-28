@@ -6,12 +6,14 @@
   GH_TOKEN         : GitHub Personal Access Token
   GITHUB_REPO      : オーナー/リポジトリ名 (例: aokun0824/uword-automation)
   FLASK_SECRET_KEY : セッション暗号化キー
+  ENCRYPTION_KEY   : ユーワード認証情報の暗号化キー (Fernet)
 """
 import os
 import base64
 import yaml
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import check_password_hash, generate_password_hash
+from cryptography.fernet import Fernet, InvalidToken
 from github import Github, GithubException, UnknownObjectException
 
 app = Flask(__name__)
@@ -20,13 +22,38 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-change-in-produc
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 GITHUB_TOKEN   = os.environ.get("GH_TOKEN", "")
 GITHUB_REPO    = os.environ.get("GITHUB_REPO", "aokun0824/uword-automation")
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")
+
+
+# ─── 暗号化ヘルパー ───────────────────────────────────────────────────────────
+
+def get_fernet() -> Fernet:
+    if not ENCRYPTION_KEY:
+        raise RuntimeError("ENCRYPTION_KEY が設定されていません")
+    key = ENCRYPTION_KEY.encode() if isinstance(ENCRYPTION_KEY, str) else ENCRYPTION_KEY
+    return Fernet(key)
+
+def encrypt_str(value: str) -> str:
+    return get_fernet().encrypt(value.encode()).decode()
+
+def decrypt_str(token: str) -> str:
+    return get_fernet().decrypt(token.encode()).decode()
+
+def verify_uword_pw(config: dict, password: str) -> bool:
+    """YAMLに保存された暗号化PWと照合する"""
+    try:
+        pw_encrypted = config.get("uword", {}).get("credentials", {}).get("pw_encrypted", "")
+        if not pw_encrypted:
+            return False
+        return decrypt_str(pw_encrypted) == password
+    except (InvalidToken, Exception):
+        return False
 
 
 # ─── GitHub ヘルパー ───────────────────────────────────────────────────────────
 
 def get_repo():
     return Github(GITHUB_TOKEN).get_repo(GITHUB_REPO)
-
 
 def gh_read_yaml(path: str):
     """GitHub から YAML ファイルを読み込んで (dict, sha) を返す"""
@@ -39,9 +66,7 @@ def gh_read_yaml(path: str):
     except GithubException as e:
         raise RuntimeError(f"GitHub読み込みエラー: {e}") from e
 
-
 def gh_write_yaml(path: str, data: dict, sha: str, message: str) -> bool:
-    """GitHub の YAML ファイルを上書き保存する"""
     content = yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False)
     try:
         repo = get_repo()
@@ -54,7 +79,6 @@ def gh_write_yaml(path: str, data: dict, sha: str, message: str) -> bool:
         app.logger.error("GitHub書き込みエラー: %s", e)
         return False
 
-
 def gh_create_yaml(path: str, data: dict, message: str) -> bool:
     content = yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False)
     try:
@@ -64,9 +88,7 @@ def gh_create_yaml(path: str, data: dict, message: str) -> bool:
         app.logger.error("GitHub作成エラー: %s", e)
         return False
 
-
-def get_all_members():
-    """users/*.yaml を一覧取得（template.yaml を除く）"""
+def get_all_members() -> dict:
     try:
         contents = get_repo().get_contents("users")
         members = {}
@@ -79,14 +101,24 @@ def get_all_members():
     except GithubException:
         return {}
 
-
-def get_history(slug: str) -> list[str]:
+def get_history(slug: str) -> list:
     try:
         f = get_repo().get_contents(f"history_{slug}.txt")
         raw = base64.b64decode(f.content).decode("utf-8")
         return [l for l in raw.splitlines() if l.strip()]
     except (GithubException, UnknownObjectException):
         return []
+
+def default_tone():
+    return [
+        "友達に話しかけるような、自然でやわらかい口語調で書く",
+        "話題のキーワードを使って共感を引き出す",
+        "安心できる言葉を入れる",
+        "最後は自然な誘導で締める",
+        "「速報」「リアルタイム」のような仰々しい言葉は使わない",
+        "URLやハッシュタグは不要",
+        "過去投稿との重複を避ける",
+    ]
 
 
 # ─── 認証ヘルパー ─────────────────────────────────────────────────────────────
@@ -98,7 +130,6 @@ def is_admin():
     return session.get("role") == "admin"
 
 def require_login(slug=None):
-    """ログイン & アクセス権チェック。問題があれば redirect を返す、なければ None"""
     if not logged_in():
         return redirect(url_for("login"))
     if slug and not is_admin() and session["user"] != slug:
@@ -132,11 +163,14 @@ def login():
             if ADMIN_PASSWORD and password == ADMIN_PASSWORD:
                 session.update(user="admin", role="admin")
                 return redirect(url_for("dashboard"))
-
         else:
-            # 会員ログイン
             config, _ = gh_read_yaml(f"users/{username}.yaml")
             if config:
+                # 新方式: ユーワードPWで照合
+                if verify_uword_pw(config, password):
+                    session.update(user=username, role="member")
+                    return redirect(url_for("member_edit", slug=username))
+                # 旧方式: ハッシュ照合（後方互換）
                 stored = config.get("auth", {}).get("password_hash", "")
                 if stored and check_password_hash(stored, password):
                     session.update(user=username, role="member")
@@ -153,89 +187,88 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ── 会員自己登録 ───────────────────────────────────────────────────────────
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        uword_id  = request.form.get("uword_id", "").strip()
+        uword_pw  = request.form.get("uword_pw", "").strip()
+        user_path = request.form.get("user_path", "").strip()
+        name      = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip()
+        cta       = request.form.get("cta", "お気軽にご相談ください").strip()
+
+        if not all([uword_id, uword_pw, user_path, name]):
+            flash("すべての必須項目を入力してください", "danger")
+            return render_template("register.html")
+
+        # スラグ = ユーワードID をそのまま使う（英数字・ハイフン以外は除去）
+        import re
+        slug = re.sub(r"[^a-zA-Z0-9\-]", "", uword_id.lower().replace("_", "-").replace(" ", "-"))
+        if not slug:
+            flash("ユーワードIDに使用できない文字が含まれています", "danger")
+            return render_template("register.html")
+
+        existing, _ = gh_read_yaml(f"users/{slug}.yaml")
+        if existing:
+            flash("このIDはすでに登録されています。担当者にお問い合わせください", "danger")
+            return render_template("register.html")
+
+        try:
+            id_enc = encrypt_str(uword_id)
+            pw_enc = encrypt_str(uword_pw)
+        except RuntimeError as e:
+            flash(f"暗号化エラー: {e}", "danger")
+            return render_template("register.html")
+
+        new_config = {
+            "profile": {"name": name, "description": description, "cta": cta},
+            "uword": {
+                "user_path":   user_path,
+                "credentials": {"id_encrypted": id_enc, "pw_encrypted": pw_enc},
+            },
+            "schedule": {"times": ["09:00", "21:00"], "timezone": "Asia/Tokyo"},
+            "post": {
+                "title_max": 30, "body_max": 140,
+                "history_max": 10,
+                "prefix": "【この投稿はAIで自動投稿しています】\n",
+            },
+            "rss":    {"feeds": ["https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja"]},
+            "ai":     {"model": "claude-haiku-4-5", "max_tokens": 300},
+            "prompt": {"tone": default_tone()},
+        }
+
+        if gh_create_yaml(f"users/{slug}.yaml", new_config, f"feat: 新規会員登録 {slug}"):
+            flash("登録が完了しました！ログインしてください", "success")
+            return redirect(url_for("login"))
+        else:
+            flash("登録に失敗しました。しばらく経ってから再試行してください", "danger")
+
+    return render_template("register.html")
+
+
 # ── 管理者: ダッシュボード ──────────────────────────────────────────────────
 
 @app.route("/dashboard")
 def dashboard():
     if r := require_login(): return r
-    if not is_admin():
-        return redirect(url_for("index"))
+    if not is_admin(): return redirect(url_for("index"))
     members = get_all_members()
     return render_template("dashboard.html", members=members)
 
 
-# ── 管理者: 新規会員作成 ───────────────────────────────────────────────────
+# ── 管理者: 認証情報リセット ───────────────────────────────────────────────
 
-@app.route("/admin/new", methods=["GET", "POST"])
-def admin_new():
+@app.route("/admin/member/<slug>/reset-credentials", methods=["POST"])
+def admin_reset_credentials(slug):
     if r := require_login(): return r
     if not is_admin(): return redirect(url_for("index"))
 
-    if request.method == "POST":
-        slug      = request.form.get("slug", "").strip().lower().replace(" ", "-")
-        name      = request.form.get("name", "").strip()
-        user_path = request.form.get("user_path", "").strip()
-        password  = request.form.get("password", "").strip()
-
-        if not all([slug, name, user_path, password]):
-            flash("すべての項目を入力してください", "danger")
-            return render_template("admin_new.html")
-
-        path = f"users/{slug}.yaml"
-        existing, _ = gh_read_yaml(path)
-        if existing:
-            flash(f"スラグ '{slug}' はすでに使用されています", "danger")
-            return render_template("admin_new.html")
-
-        env_key = slug.upper().replace("-", "_")
-        new_config = {
-            "profile": {
-                "name":        name,
-                "description": request.form.get("description", ""),
-                "cta":         request.form.get("cta", "お気軽にご相談ください"),
-            },
-            "uword":    {"user_path": user_path},
-            "secrets":  {"id_env": f"UWORD_ID_{env_key}", "pw_env": f"UWORD_PW_{env_key}"},
-            "schedule": {"times": ["09:00", "21:00"], "timezone": "Asia/Tokyo"},
-            "post": {
-                "title_max":   30,
-                "body_max":    140,
-                "history_max": 10,
-                "prefix":      "【この投稿はAIで自動投稿しています】\n",
-            },
-            "rss":    {"feeds": ["https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja"]},
-            "ai":     {"model": "claude-haiku-4-5", "max_tokens": 300},
-            "prompt": {"tone": [
-                "友達に話しかけるような、自然でやわらかい口語調で書く",
-                "話題のキーワードを使って共感を引き出す",
-                "安心できる言葉を入れる",
-                "最後は自然な誘導で締める",
-                "「速報」「リアルタイム」のような仰々しい言葉は使わない",
-                "URLやハッシュタグは不要",
-                "過去投稿との重複を避ける",
-            ]},
-            "auth": {"password_hash": generate_password_hash(password)},
-        }
-
-        if gh_create_yaml(path, new_config, f"feat: 新規会員 {slug} を追加"):
-            flash(f"会員 '{slug}' を作成しました。GitHubActionsに UWORD_ID_{env_key} / UWORD_PW_{env_key} を登録してください", "success")
-            return redirect(url_for("dashboard"))
-        else:
-            flash("作成に失敗しました。GH_TOKEN の権限を確認してください", "danger")
-
-    return render_template("admin_new.html")
-
-
-# ── 管理者: パスワードリセット ─────────────────────────────────────────────
-
-@app.route("/admin/member/<slug>/set-password", methods=["POST"])
-def admin_set_password(slug):
-    if r := require_login(): return r
-    if not is_admin(): return redirect(url_for("index"))
-
-    password = request.form.get("password", "").strip()
-    if not password:
-        flash("パスワードを入力してください", "danger")
+    uword_id = request.form.get("uword_id", "").strip()
+    uword_pw = request.form.get("uword_pw", "").strip()
+    if not uword_id or not uword_pw:
+        flash("IDとパスワードを入力してください", "danger")
         return redirect(url_for("dashboard"))
 
     config, sha = gh_read_yaml(f"users/{slug}.yaml")
@@ -243,10 +276,17 @@ def admin_set_password(slug):
         flash("設定ファイルが見つかりません", "danger")
         return redirect(url_for("dashboard"))
 
-    config.setdefault("auth", {})["password_hash"] = generate_password_hash(password)
+    try:
+        config.setdefault("uword", {})["credentials"] = {
+            "id_encrypted": encrypt_str(uword_id),
+            "pw_encrypted": encrypt_str(uword_pw),
+        }
+    except RuntimeError as e:
+        flash(f"暗号化エラー: {e}", "danger")
+        return redirect(url_for("dashboard"))
 
-    if gh_write_yaml(f"users/{slug}.yaml", config, sha, f"chore: {slug} のパスワードを更新"):
-        flash(f"{slug} のパスワードを設定しました", "success")
+    if gh_write_yaml(f"users/{slug}.yaml", config, sha, f"chore: {slug} の認証情報を更新"):
+        flash(f"{slug} の認証情報を更新しました", "success")
     else:
         flash("保存に失敗しました", "danger")
 
@@ -265,30 +305,25 @@ def member_edit(slug):
         return redirect(url_for("index"))
 
     if request.method == "POST":
-        # プロフィール
         config["profile"]["name"]        = request.form.get("profile_name", "")
         config["profile"]["description"] = request.form.get("profile_description", "")
         config["profile"]["cta"]         = request.form.get("profile_cta", "")
 
-        # スケジュール（カンマ区切り）
         times_raw = request.form.get("schedule_times", "")
         config["schedule"]["times"] = [t.strip() for t in times_raw.split(",") if t.strip()]
 
-        # 投稿設定
         config["post"]["prefix"] = request.form.get("post_prefix", "")
 
-        # RSSフィード（改行区切り）
         feeds_raw = request.form.get("rss_feeds", "")
         config["rss"]["feeds"] = [f.strip() for f in feeds_raw.splitlines() if f.strip()]
 
-        # 文体ルール（改行区切り）
         tone_raw = request.form.get("prompt_tone", "")
         config["prompt"]["tone"] = [t.strip() for t in tone_raw.splitlines() if t.strip()]
 
-        # 管理者のみ: AIモデル / uword_path
+        # 管理者のみ
         if is_admin():
-            config["ai"]["model"]       = request.form.get("ai_model", "claude-haiku-4-5")
-            config["uword"]["user_path"] = request.form.get("uword_user_path", "")
+            config["ai"]["model"]        = request.form.get("ai_model", "claude-haiku-4-5")
+            config["uword"]["user_path"]  = request.form.get("uword_user_path", "")
 
         if gh_write_yaml(f"users/{slug}.yaml", config, sha, f"chore: {slug} の設定を更新"):
             flash("設定を保存しました", "success")

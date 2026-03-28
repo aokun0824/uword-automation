@@ -129,15 +129,33 @@ BODY: （本文・{post_cfg['body_max']}文字以内）
     return title, body
 
 
+def get_uword_credentials(config: dict) -> tuple:
+    """ユーワードのID/PWを取得（暗号化認証情報 → 環境変数の順でフォールバック）"""
+    credentials = config.get("uword", {}).get("credentials", {})
+    if credentials.get("id_encrypted") and credentials.get("pw_encrypted"):
+        encryption_key = os.environ.get("ENCRYPTION_KEY", "")
+        if not encryption_key:
+            raise ValueError("ENCRYPTION_KEY 環境変数が設定されていません")
+        from cryptography.fernet import Fernet
+        f = Fernet(encryption_key.encode())
+        uword_id = f.decrypt(credentials["id_encrypted"].encode()).decode()
+        uword_pw = f.decrypt(credentials["pw_encrypted"].encode()).decode()
+        print("[認証] YAMLの暗号化認証情報を使用")
+    else:
+        secrets_cfg = config.get("secrets", {})
+        uword_id = os.environ.get(secrets_cfg.get("id_env", ""))
+        uword_pw = os.environ.get(secrets_cfg.get("pw_env", ""))
+        print("[認証] 環境変数を使用")
+    if not uword_id or not uword_pw:
+        raise ValueError("ユーワードの認証情報が取得できませんでした")
+    return uword_id, uword_pw
+
+
 async def post_to_uword(config: dict, title: str, body: str) -> bool:
-    secrets_cfg = config["secrets"]
-    uword_id = os.environ.get(secrets_cfg["id_env"])
-    uword_pw = os.environ.get(secrets_cfg["pw_env"])
+    uword_id, uword_pw = get_uword_credentials(config)
 
     if not uword_id or not uword_pw:
-        raise ValueError(
-            f"環境変数 {secrets_cfg['id_env']} / {secrets_cfg['pw_env']} が設定されていません"
-        )
+        raise ValueError("ユーワードの認証情報が設定されていません")
 
     user_path = config["uword"]["user_path"]
     login_url = f"https://u-word.com/{user_path}/login"

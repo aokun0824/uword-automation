@@ -42,32 +42,39 @@
             <i class="bi bi-clock-history me-1"></i>投稿履歴
           </a>
 
-          <!-- パスワードリセット -->
+          <!-- 認証情報リセット -->
           <button class="btn btn-sm btn-outline-warning"
-                  data-bs-toggle="modal" data-bs-target="#pwModal{{ loop.index }}">
-            <i class="bi bi-key me-1"></i>PW設定
+                  data-bs-toggle="modal" data-bs-target="#credModal{{ loop.index }}">
+            <i class="bi bi-key me-1"></i>認証情報
           </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- パスワード設定モーダル -->
-  <div class="modal fade" id="pwModal{{ loop.index }}" tabindex="-1">
+  <!-- 認証情報リセットモーダル -->
+  <div class="modal fade" id="credModal{{ loop.index }}" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content rounded-3">
         <div class="modal-header">
-          <h5 class="modal-title">パスワード設定 — {{ slug }}</h5>
+          <h5 class="modal-title"><i class="bi bi-key me-1"></i>認証情報を更新 — {{ slug }}</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <form method="post" action="{{ url_for('admin_set_password', slug=slug) }}">
+        <form method="post" action="{{ url_for('admin_reset_credentials', slug=slug) }}">
           <div class="modal-body">
-            <label class="form-label">新しいパスワード</label>
-            <input type="password" name="password" class="form-control" required minlength="6">
+            <p class="text-muted small mb-3">会員のユーワードID・PWを暗号化して保存します。</p>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">ユーワード ログインID</label>
+              <input type="text" name="uword_id" class="form-control" required>
+            </div>
+            <div class="mb-0">
+              <label class="form-label fw-semibold">ユーワード パスワード</label>
+              <input type="password" name="uword_pw" class="form-control" required>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-            <button type="submit" class="btn btn-warning">保存</button>
+            <button type="submit" class="btn btn-warning">暗号化して保存</button>
           </div>
         </form>
       </div>

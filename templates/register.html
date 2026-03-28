@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}新規登録 — ユーワード自動投稿{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-3">
+  <div class="col-sm-11 col-md-8 col-lg-6">
+    <div class="text-center mb-4">
+      <i class="bi bi-robot text-primary" style="font-size:2.5rem"></i>
+      <h4 class="fw-bold mt-2">ユーワード自動投稿 — 新規登録</h4>
+      <p class="text-muted small">ユーワードのログイン情報で登録します。<br>担当者から案内されたURLからのみ登録できます。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post">
+
+          <h6 class="fw-bold text-primary mb-3"><i class="bi bi-key me-1"></i>ユーワードのログイン情報</h6>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">ユーワード ログインID <span class="text-danger">*</span></label>
+            <input type="text" name="uword_id" class="form-control" required autofocus
+                   placeholder="ユーワードにログインする際のID">
+            <div class="form-text">このIDが管理画面のユーザー名になります</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">ユーワード パスワード <span class="text-danger">*</span></label>
+            <input type="password" name="uword_pw" class="form-control" required
+                   placeholder="ユーワードにログインする際のパスワード">
+            <div class="form-text">このパスワードが管理画面のログインにも使われます</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">ユーワード ユーザーパス <span class="text-danger">*</span></label>
+            <input type="text" name="user_path" class="form-control" required
+                   placeholder="例: horby">
+            <div class="form-text">
+              ユーワードのマイページURL内のパスです。<br>
+              例: <code>https://u-word.com/<strong>horby</strong>/myPage</code> の太字部分
+            </div>
+          </div>
+
+          <hr>
+
+          <h6 class="fw-bold text-primary mb-3"><i class="bi bi-shop me-1"></i>お店・サービスの情報</h6>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">店舗・サービス名 <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required
+                   placeholder="例: 田中リラクゼーションサロン">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">サービス説明</label>
+            <textarea name="description" class="form-control" rows="2"
+                      placeholder="例: 肩こり・腰痛に特化したリラクゼーションサロンです"></textarea>
+            <div class="form-text">投稿内容に影響します（後から変更できます）</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">締め文（CTA）</label>
+            <input type="text" name="cta" class="form-control"
+                   value="お気軽にご相談ください"
+                   placeholder="例: お気軽にご相談ください">
+            <div class="form-text">投稿の最後に自動でつく一言</div>
+          </div>
+
+          <div class="alert alert-secondary small">
+            <i class="bi bi-shield-lock me-1"></i>
+            ユーワードのパスワードは暗号化されて保存されます。担当者も平文では確認できません。
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-person-check me-1"></i>登録する
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="text-center mt-3">
+      <a href="{{ url_for('login') }}" class="text-muted small">すでに登録済みの方はこちら</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
