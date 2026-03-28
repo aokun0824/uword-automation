@@ -1,0 +1,36 @@
+profile:
+  name: EGAO Works（えがおワークス）
+  description: 笑顔を大切に想いが伝わるお店づくりをお手伝いさせてください
+  cta: えがおワークスにお気軽にご相談ください！
+uword:
+  user_path: horby
+  credentials:
+    id_encrypted: gAAAAABpx5ZF9zCTack_UBrgBxwRt3edP_romn4g7iNZxoW1QfoDbaU0ROcIUbVbgVwZyoQ610psPuprdaBYVQG-vRGYNriphw==
+    pw_encrypted: gAAAAABpx5ZF-nxRB1q1E6jgJd-6qB0JZEWHMbMNH2ZvBuhQBrt1iBVuvPTWOKoza5x6w8gn_dkOE8VXzOuTqGtksolv9-nHxw==
+schedule:
+  times:
+  - 09:00
+  - '21:00'
+  timezone: Asia/Tokyo
+post:
+  title_max: 30
+  body_max: 140
+  history_max: 10
+  prefix: '【この投稿はAIで自動投稿しています】
+
+    '
+rss:
+  feeds:
+  - https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja
+ai:
+  model: claude-haiku-4-5
+  max_tokens: 300
+prompt:
+  tone:
+  - 友達に話しかけるような、自然でやわらかい口語調で書く
+  - 話題のキーワードを使って共感を引き出す
+  - 安心できる言葉を入れる
+  - 最後は自然な誘導で締める
+  - 「速報」「リアルタイム」のような仰々しい言葉は使わない
+  - URLやハッシュタグは不要
+  - 過去投稿との重複を避ける
