@@ -3,3 +3,7 @@ __pycache__/
 *.pyo
 .env
 error_screenshot.png
+after_click.png
+after_submit.png
+# config.yaml は旧形式（users/*.yaml を使ってください）
+config.yaml

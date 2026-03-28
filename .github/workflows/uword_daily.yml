@@ -11,9 +11,9 @@ jobs:
   post:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Node.js 24を強制使用（警告解消）
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
-      contents: write   # history.txt のコミット・プッシュに必要
+      contents: write
 
     steps:
       - name: リポジトリをチェックアウト
@@ -27,23 +27,28 @@ jobs:
       - name: 依存ライブラリをインストール
         run: pip install -r requirements.txt
 
-      - name: 設定ファイルの確認
-        run: |
-          if [ ! -f config.yaml ]; then
-            echo "ERROR: config.yaml が見つかりません"
-            exit 1
-          fi
-          echo "config.yaml を確認しました"
-
       - name: Playwright (Chromium) をインストール
         run: playwright install chromium --with-deps
 
-      - name: 投稿スクリプトを実行
+      # ===== 会員ごとの投稿処理 =====
+      # 新しい会員を追加する場合は、このブロックをコピーして追加してください
+
+      - name: 投稿 - EGAO Works（えがおワークス）
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          UWORD_ID: ${{ secrets.UWORD_ID }}
-          UWORD_PW: ${{ secrets.UWORD_PW }}
-        run: python uword_poster.py
+          UWORD_ID_EGAOWORKS: ${{ secrets.UWORD_ID_EGAOWORKS }}
+          UWORD_PW_EGAOWORKS: ${{ secrets.UWORD_PW_EGAOWORKS }}
+        run: python uword_poster.py --config users/egao-works.yaml
+
+      # 会員追加例（コメントアウト）:
+      # - name: 投稿 - 〇〇サロン
+      #   env:
+      #     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      #     UWORD_ID_XXXSALON: ${{ secrets.UWORD_ID_XXXSALON }}
+      #     UWORD_PW_XXXSALON: ${{ secrets.UWORD_PW_XXXSALON }}
+      #   run: python uword_poster.py --config users/xxx-salon.yaml
+
+      # ===== 共通後処理 =====
 
       - name: スクリーンショットをアップロード
         if: always()
@@ -56,11 +61,10 @@ jobs:
             after_submit.png
           if-no-files-found: ignore
 
-      - name: history.txt をコミット＆プッシュ
+      - name: 履歴ファイルをコミット＆プッシュ
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add history.txt
-          # 変更がない場合はスキップ
+          git add history_*.txt
           git diff --cached --quiet || git commit -m "chore: 投稿履歴を更新 [$(date '+%Y-%m-%d %H:%M JST')]"
           git push

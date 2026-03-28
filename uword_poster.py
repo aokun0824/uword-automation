@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """
 ユーワード自動投稿スクリプト
-設定は config.yaml で管理します
+設定は users/<会員名>.yaml で管理します
+
+使い方:
+  python uword_poster.py --config users/egao-works.yaml
 """
 import os
 import sys
 import asyncio
+import argparse
 import feedparser
 import yaml
 from datetime import datetime
@@ -13,41 +17,25 @@ from pathlib import Path
 import anthropic
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
-# ===== 設定読み込み =====
-CONFIG_FILE = Path(__file__).parent / "config.yaml"
 
-def load_config() -> dict:
-    if not CONFIG_FILE.exists():
-        print(f"[ERROR] 設定ファイルが見つかりません: {CONFIG_FILE}", file=sys.stderr)
+def load_config(config_path: str) -> dict:
+    path = Path(config_path)
+    if not path.exists():
+        print(f"[ERROR] 設定ファイルが見つかりません: {path}", file=sys.stderr)
         sys.exit(1)
-    with CONFIG_FILE.open(encoding="utf-8") as f:
-        return yaml.safe_load(f)
-
-CONFIG = load_config()
-
-# 設定から値を取得
-HISTORY_FILE = Path(__file__).parent / "history.txt"
-MAX_HISTORY   = CONFIG["post"]["history_max"]
-TITLE_MAX     = CONFIG["post"]["title_max"]
-BODY_MAX      = CONFIG["post"]["body_max"]
-POST_PREFIX   = CONFIG["post"]["prefix"]
-MODEL         = CONFIG["ai"]["model"]
-MAX_TOKENS    = CONFIG["ai"]["max_tokens"]
-RSS_FEEDS     = CONFIG["rss"]["feeds"]
-USER_PATH     = CONFIG["uword"]["user_path"]
-LOGIN_URL     = f"https://u-word.com/{USER_PATH}/login"
-POST_URL      = f"https://u-word.com/{USER_PATH}/myPage/realTimePost"
-
-PROFILE_NAME  = CONFIG["profile"]["name"]
-PROFILE_DESC  = CONFIG["profile"]["description"]
-PROFILE_CTA   = CONFIG["profile"]["cta"]
-TONE_RULES    = CONFIG["prompt"]["tone"]
+    with path.open(encoding="utf-8") as f:
+        return yaml.safe_load(f), path
 
 
-def fetch_news(max_items: int = 5) -> list[str]:
+def get_history_file(config_path: Path) -> Path:
+    """設定ファイル名に対応した履歴ファイルパスを返す"""
+    return config_path.parent.parent / f"history_{config_path.stem}.txt"
+
+
+def fetch_news(rss_feeds: list[str], max_items: int = 5) -> list[str]:
     """RSSから最新ニュースタイトルを取得する"""
     headlines = []
-    for url in RSS_FEEDS:
+    for url in rss_feeds:
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:max_items]:
@@ -62,59 +50,65 @@ def fetch_news(max_items: int = 5) -> list[str]:
     return headlines[:5]
 
 
-def load_history() -> list[str]:
-    if not HISTORY_FILE.exists():
+def load_history(history_file: Path, max_history: int) -> list[str]:
+    if not history_file.exists():
         return []
-    lines = HISTORY_FILE.read_text(encoding="utf-8").splitlines()
+    lines = history_file.read_text(encoding="utf-8").splitlines()
     entries = [l for l in lines if l.strip()]
-    return entries[-MAX_HISTORY:]
+    return entries[-max_history:]
 
 
-def save_history(title: str, body: str) -> None:
+def save_history(history_file: Path, title: str, body: str) -> None:
     entry = f"[タイトル]{title} [本文]{body[:40]}"
-    with HISTORY_FILE.open("a", encoding="utf-8") as f:
+    with history_file.open("a", encoding="utf-8") as f:
         f.write(entry.strip() + "\n")
     print(f"[履歴保存] {entry[:50]}...")
 
 
-def generate_post(history: list[str], news: list[str]) -> tuple[str, str]:
+def generate_post(config: dict, history: list[str], news: list[str]) -> tuple[str, str]:
     """タイトルと本文を別々に生成して返す"""
     client = anthropic.Anthropic()
+
+    profile      = config["profile"]
+    post_cfg     = config["post"]
+    ai_cfg       = config["ai"]
+    tone_rules   = config["prompt"]["tone"]
+
     history_block = "\n".join(f"- {h}" for h in history) if history else "（履歴なし）"
     news_block    = "\n".join(f"- {n}" for n in news)     if news    else "（ニュース取得なし）"
-    tone_block    = "\n".join(f"- {t}" for t in TONE_RULES)
+    tone_block    = "\n".join(f"- {t}" for t in tone_rules)
 
-    prompt = f"""あなたは{PROFILE_NAME}のSNS担当スタッフです。
-{PROFILE_NAME}は、{PROFILE_DESC}。
+    prompt = f"""あなたは{profile['name']}のSNS担当スタッフです。
+{profile['name']}は、{profile['description']}。
 
 【今日の実際のAIニュース（RSS取得）】
 {news_block}
 
-上のニュースの中から1つ選び、それをきっかけに「{PROFILE_NAME}に相談しよう」と思ってもらえるような投稿を作ってください。
+上のニュースの中から1つ選び、それをきっかけに「{profile['name']}に相談しよう」と思ってもらえるような投稿を作ってください。
 
 【出力形式】必ず以下の形式のみで出力（余計な説明・前置き・コメントは一切不要）：
-TITLE: （見出し・{TITLE_MAX}文字以内）
-BODY: （本文・{BODY_MAX}文字以内）
+TITLE: （見出し・{post_cfg['title_max']}文字以内）
+BODY: （本文・{post_cfg['body_max']}文字以内）
 
 【文体・内容のルール】
 {tone_block}
-- 最後は「{PROFILE_CTA}」のような自然な誘導で締める
+- 最後は「{profile['cta']}」のような自然な誘導で締める
 
-【過去の投稿履歴（直近{MAX_HISTORY}件）】
+【過去の投稿履歴（直近{post_cfg['history_max']}件）】
 {history_block}
 
 投稿:"""
 
     message = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
+        model=ai_cfg["model"],
+        max_tokens=ai_cfg["max_tokens"],
         messages=[{"role": "user", "content": prompt}],
     )
     raw = message.content[0].text.strip()
     print(f"[Claude生成結果]\n{raw}")
 
     title = ""
-    body = ""
+    body  = ""
     for line in raw.splitlines():
         if line.startswith("TITLE:"):
             title = line.replace("TITLE:", "").strip()
@@ -122,24 +116,32 @@ BODY: （本文・{BODY_MAX}文字以内）
             body = line.replace("BODY:", "").strip()
 
     if not title:
-        title = raw[:TITLE_MAX]
+        title = raw[:post_cfg["title_max"]]
     if not body:
         body = raw
 
-    if len(title) > TITLE_MAX:
-        title = title[:TITLE_MAX]
-    body = POST_PREFIX + body
-    if len(body) > BODY_MAX:
-        body = body[:BODY_MAX]
+    if len(title) > post_cfg["title_max"]:
+        title = title[:post_cfg["title_max"]]
+    body = post_cfg["prefix"] + body
+    if len(body) > post_cfg["body_max"]:
+        body = body[:post_cfg["body_max"]]
 
     return title, body
 
 
-async def post_to_uword(title: str, body: str) -> bool:
-    uword_id = os.environ.get("UWORD_ID")
-    uword_pw = os.environ.get("UWORD_PW")
+async def post_to_uword(config: dict, title: str, body: str) -> bool:
+    secrets_cfg = config["secrets"]
+    uword_id = os.environ.get(secrets_cfg["id_env"])
+    uword_pw = os.environ.get(secrets_cfg["pw_env"])
+
     if not uword_id or not uword_pw:
-        raise ValueError("環境変数 UWORD_ID / UWORD_PW が設定されていません")
+        raise ValueError(
+            f"環境変数 {secrets_cfg['id_env']} / {secrets_cfg['pw_env']} が設定されていません"
+        )
+
+    user_path = config["uword"]["user_path"]
+    login_url = f"https://u-word.com/{user_path}/login"
+    post_url  = f"https://u-word.com/{user_path}/myPage/realTimePost"
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -158,8 +160,8 @@ async def post_to_uword(title: str, body: str) -> bool:
         success = False
 
         try:
-            print(f"[アクセス] {LOGIN_URL}")
-            await page.goto(LOGIN_URL, wait_until="networkidle", timeout=30000)
+            print(f"[アクセス] {login_url}")
+            await page.goto(login_url, wait_until="networkidle", timeout=30000)
             await page.fill("input#ion-input-0", uword_id, timeout=10000)
             print("[ID入力] 完了")
             await page.fill("input#ion-input-1", uword_pw, timeout=10000)
@@ -171,11 +173,9 @@ async def post_to_uword(title: str, body: str) -> bool:
             await page.wait_for_load_state("networkidle", timeout=20000)
             print(f"[ログイン] 完了 URL: {page.url}")
 
-            print(f"[アクセス] {POST_URL}")
-            await page.goto(POST_URL, wait_until="domcontentloaded", timeout=30000)
+            print(f"[アクセス] {post_url}")
+            await page.goto(post_url, wait_until="domcontentloaded", timeout=30000)
             await page.wait_for_timeout(5000)
-            print(f"[現在URL] {page.url}")
-            print(f"[ページタイトル] {await page.title()}")
 
             await page.wait_for_url(lambda url: "realTimePost" in url or "realTimeEdit" in url, timeout=10000)
             await page.wait_for_selector("ion-input[name='title'] input", state="visible", timeout=30000)
@@ -198,7 +198,6 @@ async def post_to_uword(title: str, body: str) -> bool:
             await page.wait_for_timeout(3000)
             await page.wait_for_load_state("networkidle", timeout=15000)
             print(f"[送信後URL] {page.url}")
-            print(f"[送信後タイトル] {await page.title()}")
             await page.screenshot(path="after_submit.png")
             print("[送信完了]")
             success = True
@@ -214,18 +213,37 @@ async def post_to_uword(title: str, body: str) -> bool:
 
 
 async def main():
-    print(f"=== {PROFILE_NAME} 自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
-    history = load_history()
+    parser = argparse.ArgumentParser(description="ユーワード自動投稿スクリプト")
+    parser.add_argument(
+        "--config",
+        default="config.yaml",
+        help="設定ファイルのパス（例: users/egao-works.yaml）"
+    )
+    args = parser.parse_args()
+
+    config, config_path = load_config(args.config)
+    history_file = get_history_file(config_path)
+    profile_name = config["profile"]["name"]
+
+    print(f"=== {profile_name} 自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
+    print(f"[設定] {config_path}")
+    print(f"[履歴] {history_file}")
+
+    history = load_history(history_file, config["post"]["history_max"])
     print(f"[履歴] {len(history)} 件を参照")
-    news = fetch_news()
+
+    news = fetch_news(config["rss"]["feeds"])
+
     print("[Claude API] 投稿文を生成中...")
-    title, body = generate_post(history, news)
+    title, body = generate_post(config, history, news)
     print(f"[タイトル] {title}")
     print(f"[本文] {body}")
+
     print("[Playwright] ブラウザ操作を開始...")
-    await post_to_uword(title, body)
-    save_history(title, body)
-    print("=== 投稿完了 ===")
+    await post_to_uword(config, title, body)
+
+    save_history(history_file, title, body)
+    print(f"=== {profile_name} 投稿完了 ===")
 
 
 if __name__ == "__main__":
