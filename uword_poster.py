@@ -132,7 +132,15 @@ BODY: （本文・{post_cfg['body_max']}文字以内）
 
     if len(title) > post_cfg["title_max"]:
         title = title[:post_cfg["title_max"]]
-    body = post_cfg["prefix"].replace("\\n", "\n") + body
+
+    cta = config["profile"].get("cta", "").strip()
+    prefix = post_cfg["prefix"].replace("\\n", "\n")
+
+    # CTA を末尾に確実に付与（すでに含んでいれば追加しない）
+    if cta and cta not in body:
+        body = body.rstrip("。．.！!") + "\n" + cta
+
+    body = prefix + body
     if len(body) > post_cfg["body_max"]:
         body = body[:post_cfg["body_max"]]
 
