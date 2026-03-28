@@ -105,6 +105,78 @@
     </div>
   </div>
 
+  <!-- キーワード -->
+  <div class="card mb-4">
+    <div class="card-header py-3">
+      <h5 class="mb-0"><i class="bi bi-tags me-2 text-primary"></i>アピールしたいキーワード</h5>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">投稿に必ず絡めてほしいキーワードを最大3つ入力してください。</p>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <input type="text" name="keyword1" class="form-control"
+                 placeholder="例: 初心者向け"
+                 value="{{ (config.keywords or ['','',''])[0] if config.keywords else '' }}">
+        </div>
+        <div class="col-md-4">
+          <input type="text" name="keyword2" class="form-control"
+                 placeholder="例: AI活用"
+                 value="{{ (config.keywords or ['','',''])[1] if config.keywords and config.keywords|length > 1 else '' }}">
+        </div>
+        <div class="col-md-4">
+          <input type="text" name="keyword3" class="form-control"
+                 placeholder="例: 無料相談"
+                 value="{{ (config.keywords or ['','',''])[2] if config.keywords and config.keywords|length > 2 else '' }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- メニュー・サービス -->
+  <div class="card mb-4">
+    <div class="card-header py-3">
+      <h5 class="mb-0"><i class="bi bi-list-ul me-2 text-primary"></i>紹介したいメニュー・サービス</h5>
+    </div>
+    <div class="card-body">
+      <label class="form-label fw-semibold">メニュー名（1行に1件）</label>
+      <textarea name="menu_items" class="form-control" rows="4"
+                placeholder="例:&#10;HP制作（5万円〜）&#10;AIチャットボット導入支援&#10;無料オンライン相談">{{ (config.menu_items or []) | join('\n') }}</textarea>
+      <div class="form-text">投稿ごとに1つ選んで自然にPRしてもらえます</div>
+    </div>
+  </div>
+
+  <!-- 次回投稿の自由文章 -->
+  <div class="card mb-4 border border-success">
+    <div class="card-header py-3 bg-success-subtle">
+      <h5 class="mb-0"><i class="bi bi-pencil-square me-2 text-success"></i>次回投稿の文章を指定する</h5>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        設定しておくと、次の投稿時刻にAI生成の代わりにこの文章が投稿されます。<br>
+        投稿後は自動でクリアされ、以降はAI生成に戻ります。
+      </p>
+      {% set np = config.next_post or {} %}
+      {% if np.title or np.body %}
+      <div class="alert alert-success small py-2">
+        <i class="bi bi-clock me-1"></i>次回投稿に使用する文章が設定されています
+      </div>
+      {% endif %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">タイトル（{{ config.post.title_max }}文字以内）</label>
+        <input type="text" name="next_title" class="form-control"
+               maxlength="{{ config.post.title_max }}"
+               placeholder="例: AIって結局何が便利なの？"
+               value="{{ np.title or '' }}">
+      </div>
+      <div class="mb-0">
+        <label class="form-label fw-semibold">本文</label>
+        <textarea name="next_body" class="form-control" rows="4"
+                  placeholder="例: 最近AIを使い始めたという方が増えてきましたね！...">{{ np.body or '' }}</textarea>
+        <div class="form-text">プレフィックス（{{ config.post.prefix | replace('\n','') }}）は自動でつきます</div>
+      </div>
+    </div>
+  </div>
+
   <!-- 文体ルール -->
   <div class="card mb-4">
     <div class="card-header py-3">

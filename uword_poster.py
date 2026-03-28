@@ -78,6 +78,15 @@ def generate_post(config: dict, history: list[str], news: list[str]) -> tuple[st
     news_block    = "\n".join(f"- {n}" for n in news)     if news    else "（ニュース取得なし）"
     tone_block    = "\n".join(f"- {t}" for t in tone_rules)
 
+    # キーワード・メニュー
+    keywords = [k for k in config.get("keywords", []) if k and k.strip()]
+    menu_items = [m for m in config.get("menu_items", []) if m and m.strip()]
+    keyword_block = "、".join(keywords) if keywords else ""
+    menu_block = "\n".join(f"- {m}" for m in menu_items) if menu_items else ""
+
+    keyword_instruction = f"\n【必ず触れてほしいキーワード】\n{keyword_block}" if keyword_block else ""
+    menu_instruction = f"\n【紹介したいメニュー・サービス（1つ選んで投稿に絡めてください）】\n{menu_block}" if menu_block else ""
+
     prompt = f"""あなたは{profile['name']}のSNS担当スタッフです。
 {profile['name']}は、{profile['description']}。
 
@@ -85,6 +94,7 @@ def generate_post(config: dict, history: list[str], news: list[str]) -> tuple[st
 {news_block}
 
 上のニュースの中から1つ選び、それをきっかけに「{profile['name']}に相談しよう」と思ってもらえるような投稿を作ってください。
+{keyword_instruction}{menu_instruction}
 
 【出力形式】必ず以下の形式のみで出力（余計な説明・前置き・コメントは一切不要）：
 TITLE: （見出し・{post_cfg['title_max']}文字以内）
@@ -250,10 +260,24 @@ async def main():
     history = load_history(history_file, config["post"]["history_max"])
     print(f"[履歴] {len(history)} 件を参照")
 
-    news = fetch_news(config["rss"]["feeds"])
+    # 自由文章が設定されていればそちらを優先
+    manual = config.get("next_post", {})
+    manual_title = (manual.get("title") or "").strip()
+    manual_body  = (manual.get("body")  or "").strip()
 
-    print("[Claude API] 投稿文を生成中...")
-    title, body = generate_post(config, history, news)
+    if manual_title and manual_body:
+        print("[モード] 手動投稿文を使用")
+        title = manual_title
+        body  = config["post"]["prefix"] + manual_body
+        if len(body) > config["post"]["body_max"]:
+            body = body[:config["post"]["body_max"]]
+        use_manual = True
+    else:
+        news = fetch_news(config["rss"]["feeds"])
+        print("[Claude API] 投稿文を生成中...")
+        title, body = generate_post(config, history, news)
+        use_manual = False
+
     print(f"[タイトル] {title}")
     print(f"[本文] {body}")
 
@@ -261,6 +285,15 @@ async def main():
     await post_to_uword(config, title, body)
 
     save_history(history_file, title, body)
+
+    # 手動投稿文を使った場合、YAMLからクリアする
+    if use_manual:
+        config["next_post"] = {"title": "", "body": ""}
+        with config_path.open("w", encoding="utf-8") as f:
+            import yaml as _yaml
+            _yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        print("[手動文章] 使用済み・クリアしました")
+
     print(f"=== {profile_name} 投稿完了 ===")
 
 

@@ -475,6 +475,22 @@ def member_edit(slug):
         tone_raw = request.form.get("prompt_tone", "")
         config["prompt"]["tone"] = [t.strip() for t in tone_raw.splitlines() if t.strip()]
 
+        # キーワード（3つ）
+        config["keywords"] = [
+            request.form.get("keyword1", "").strip(),
+            request.form.get("keyword2", "").strip(),
+            request.form.get("keyword3", "").strip(),
+        ]
+
+        # メニュー・サービス一覧（改行区切り）
+        menu_raw = request.form.get("menu_items", "")
+        config["menu_items"] = [m.strip() for m in menu_raw.splitlines() if m.strip()]
+
+        # 次回投稿の自由文章
+        config.setdefault("next_post", {})
+        config["next_post"]["title"] = request.form.get("next_title", "").strip()
+        config["next_post"]["body"]  = request.form.get("next_body", "").strip()
+
         # 管理者のみ
         if is_admin():
             config["ai"]["model"]        = request.form.get("ai_model", "claude-haiku-4-5")
