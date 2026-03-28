@@ -20,6 +20,7 @@ post:
 rss:
   feeds:
   - https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja
+  - https://news.google.com/rss/search?q=ChatGPT+生成AI&hl=ja&gl=JP&ceid=JP:ja
 ai:
   model: claude-haiku-4-5
   max_tokens: 300
