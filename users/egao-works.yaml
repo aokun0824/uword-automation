@@ -10,8 +10,8 @@ uword:
   user_path: "horby"  # ユーワードのマイページURL内のユーザーパス
 
 secrets:
-  id_env: "UWORD_ID_EGAOWORKS"   # GitHub Secrets のキー名
-  pw_env: "UWORD_PW_EGAOWORKS"
+  id_env: "UWORD_ID"   # GitHub Secrets のキー名
+  pw_env: "UWORD_PW"
 
 schedule:
   times: ["09:00", "21:00"]  # JST（投稿する時刻）

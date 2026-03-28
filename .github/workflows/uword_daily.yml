@@ -36,8 +36,8 @@ jobs:
       - name: 投稿 - EGAO Works（えがおワークス）
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          UWORD_ID_EGAOWORKS: ${{ secrets.UWORD_ID_EGAOWORKS }}
-          UWORD_PW_EGAOWORKS: ${{ secrets.UWORD_PW_EGAOWORKS }}
+          UWORD_ID: ${{ secrets.UWORD_ID }}
+          UWORD_PW: ${{ secrets.UWORD_PW }}
         run: python uword_poster.py --config users/egao-works.yaml
 
       # 会員追加例（コメントアウト）:
