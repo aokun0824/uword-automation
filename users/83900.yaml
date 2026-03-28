@@ -10,15 +10,13 @@ uword:
 schedule:
   times:
   - 09:00
-  - '21:00'
+  - '20:00'
   timezone: Asia/Tokyo
 post:
   title_max: 30
   body_max: 140
   history_max: 10
-  prefix: '【この投稿はAIで自動投稿しています】
-
-    '
+  prefix: 【この投稿はAIで自動投稿しています】\n
 rss:
   feeds:
   - https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja
@@ -34,3 +32,14 @@ prompt:
   - 「速報」「リアルタイム」のような仰々しい言葉は使わない
   - URLやハッシュタグは不要
   - 過去投稿との重複を避ける
+keywords:
+- 初心者向け
+- AI活用
+- 相談
+menu_items:
+- チラシ作成
+- アプリ開発
+- デジタルなんでも相談
+next_post:
+  title: ''
+  body: ''
