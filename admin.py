@@ -288,12 +288,12 @@ def register():
             },
             "schedule": {"times": ["09:00", "21:00"], "timezone": "Asia/Tokyo"},
             "post": {
-                "title_max": 30, "body_max": 140,
+                "title_max": 50, "body_max": 500,
                 "history_max": 10,
                 "prefix": "【この投稿はAIで自動投稿しています】\n",
             },
             "rss":    {"feeds": feeds},
-            "ai":     {"model": "claude-haiku-4-5", "max_tokens": 300},
+            "ai":     {"model": "claude-haiku-4-5", "max_tokens": 500},
             "prompt": {"tone": default_tone()},
         }
 
@@ -354,12 +354,12 @@ def admin_new():
             },
             "schedule": {"times": ["09:00", "21:00"], "timezone": "Asia/Tokyo"},
             "post": {
-                "title_max": 30, "body_max": 140,
+                "title_max": 50, "body_max": 500,
                 "history_max": 10,
                 "prefix": "【この投稿はAIで自動投稿しています】\n",
             },
             "rss":    {"feeds": feeds},
-            "ai":     {"model": "claude-haiku-4-5", "max_tokens": 300},
+            "ai":     {"model": "claude-haiku-4-5", "max_tokens": 500},
             "prompt": {"tone": default_tone()},
         }
 
