@@ -37,10 +37,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-          # 旧方式（暗号化認証情報未設定の場合のみ使用）
-          UWORD_ID: ${{ secrets.UWORD_ID }}
-          UWORD_PW: ${{ secrets.UWORD_PW }}
-        run: python uword_poster.py --config users/egao-works.yaml
+        run: python uword_poster.py --config users/83900.yaml
 
       # 会員追加例（コメントアウト）:
       # - name: 投稿 - 〇〇サロン
