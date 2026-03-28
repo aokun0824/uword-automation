@@ -4,7 +4,17 @@
 設定は users/<会員名>.yaml で管理します
 
 使い方:
-  python uword_poster.py --config users/egao-works.yaml
+  # 単一会員（スケジュール照合あり）
+  python uword_poster.py --config users/83900.yaml
+
+  # 単一会員（スケジュール無視・手動実行用）
+  python uword_poster.py --config users/83900.yaml --force
+
+  # 全会員を一括処理（スケジュール該当者のみ投稿）
+  python uword_poster.py --run-all
+
+  # 全会員を一括処理（スケジュール無視）
+  python uword_poster.py --run-all --force
 """
 import os
 import sys
@@ -14,8 +24,36 @@ import feedparser
 import yaml
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import anthropic
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
+
+
+def is_scheduled_now(config: dict, tolerance_minutes: int = 30) -> bool:
+    """現在時刻がschedule.timesに該当するか判定する（±tolerance分の余裕）"""
+    schedule = config.get("schedule", {})
+    times = schedule.get("times", [])
+    tz_name = schedule.get("timezone", "Asia/Tokyo")
+
+    if not times:
+        print("[スケジュール] 時刻未設定のためスキップ")
+        return False
+
+    now = datetime.now(ZoneInfo(tz_name))
+    now_minutes = now.hour * 60 + now.minute
+
+    for t in times:
+        h, m = map(int, str(t).split(":"))
+        target_minutes = h * 60 + m
+        diff = abs(now_minutes - target_minutes)
+        # 日をまたぐケース（例: 23:50 と 00:10）
+        diff = min(diff, 1440 - diff)
+        if diff <= tolerance_minutes:
+            print(f"[スケジュール] {t} に該当（現在 {now:%H:%M}、差分 {diff}分）")
+            return True
+
+    print(f"[スケジュール] 該当なし（現在 {now:%H:%M}、設定: {times}）")
+    return False
 
 
 def load_config(config_path: str) -> dict:
@@ -256,21 +294,20 @@ async def post_to_uword(config: dict, title: str, body: str) -> bool:
     return success
 
 
-async def main():
-    parser = argparse.ArgumentParser(description="ユーワード自動投稿スクリプト")
-    parser.add_argument(
-        "--config",
-        default="config.yaml",
-        help="設定ファイルのパス（例: users/egao-works.yaml）"
-    )
-    args = parser.parse_args()
-
-    config, config_path = load_config(args.config)
-    history_file = get_history_file(config_path)
+async def run_single(config_path: str, force: bool = False) -> bool:
+    """単一会員の投稿処理。投稿した場合True、スキップした場合Falseを返す。"""
+    config, config_path = load_config(config_path)
     profile_name = config["profile"]["name"]
 
-    print(f"=== {profile_name} 自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
+    print(f"\n=== {profile_name} 自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
     print(f"[設定] {config_path}")
+
+    # スケジュール照合（--force時はスキップ）
+    if not force and not is_scheduled_now(config):
+        print(f"=== {profile_name} スケジュール外のためスキップ ===")
+        return False
+
+    history_file = get_history_file(config_path)
     print(f"[履歴] {history_file}")
 
     history = load_history(history_file, config["post"]["history_max"])
@@ -311,6 +348,70 @@ async def main():
         print("[手動文章] 使用済み・クリアしました")
 
     print(f"=== {profile_name} 投稿完了 ===")
+    return True
+
+
+async def run_all(force: bool = False):
+    """users/フォルダ内の全会員を処理する。"""
+    users_dir = Path(__file__).parent / "users"
+    configs = sorted(users_dir.glob("*.yaml"))
+    configs = [c for c in configs if c.name != "template.yaml"]
+
+    if not configs:
+        print("[ERROR] users/ に設定ファイルが見つかりません", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"=== 一括投稿開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
+    print(f"[対象] {len(configs)} 会員: {[c.stem for c in configs]}")
+
+    posted = 0
+    skipped = 0
+    errors = []
+
+    for config_file in configs:
+        try:
+            result = await run_single(str(config_file), force=force)
+            if result:
+                posted += 1
+            else:
+                skipped += 1
+        except Exception as e:
+            errors.append((config_file.stem, str(e)))
+            print(f"[ERROR] {config_file.stem}: {e}", file=sys.stderr)
+
+    print(f"\n=== 一括投稿完了 ===")
+    print(f"  投稿: {posted} 件 / スキップ: {skipped} 件 / エラー: {len(errors)} 件")
+    for slug, err in errors:
+        print(f"  [ERROR] {slug}: {err}")
+
+    if errors:
+        sys.exit(1)
+
+
+async def main():
+    parser = argparse.ArgumentParser(description="ユーワード自動投稿スクリプト")
+    parser.add_argument(
+        "--config",
+        help="設定ファイルのパス（例: users/83900.yaml）"
+    )
+    parser.add_argument(
+        "--run-all",
+        action="store_true",
+        help="users/フォルダ内の全会員を一括処理"
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="スケジュール照合をスキップ（手動実行用）"
+    )
+    args = parser.parse_args()
+
+    if args.run_all:
+        await run_all(force=args.force)
+    elif args.config:
+        await run_single(args.config, force=args.force)
+    else:
+        parser.error("--config または --run-all を指定してください")
 
 
 if __name__ == "__main__":

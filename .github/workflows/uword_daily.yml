@@ -2,10 +2,14 @@ name: ユーワード自動投稿
 
 on:
   schedule:
-    # UTC 00:00 = JST 09:00
-    # UTC 12:00 = JST 21:00
-    - cron: "0 0,12 * * *"
-  workflow_dispatch:  # 手動実行でのテストにも対応
+    # 毎時0分に実行。各会員のschedule.timesと照合して該当者のみ投稿
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "スケジュール無視で全会員を投稿（手動テスト用）"
+        type: boolean
+        default: false
 
 jobs:
   post:
@@ -30,24 +34,16 @@ jobs:
       - name: Playwright (Chromium) をインストール
         run: playwright install chromium --with-deps
 
-      # ===== 会員ごとの投稿処理 =====
-      # 新しい会員を追加する場合は、このブロックをコピーして追加してください
-
-      - name: 投稿 - EGAO Works（えがおワークス）
+      - name: 全会員を一括投稿（スケジュール照合）
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-        run: python uword_poster.py --config users/83900.yaml
-
-      # 会員追加例（コメントアウト）:
-      # - name: 投稿 - 〇〇サロン
-      #   env:
-      #     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      #     UWORD_ID_XXXSALON: ${{ secrets.UWORD_ID_XXXSALON }}
-      #     UWORD_PW_XXXSALON: ${{ secrets.UWORD_PW_XXXSALON }}
-      #   run: python uword_poster.py --config users/xxx-salon.yaml
-
-      # ===== 共通後処理 =====
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            python uword_poster.py --run-all --force
+          else
+            python uword_poster.py --run-all
+          fi
 
       - name: スクリーンショットをアップロード
         if: always()
