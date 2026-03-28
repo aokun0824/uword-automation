@@ -5,8 +5,8 @@ profile:
 uword:
   user_path: horby
   credentials:
-    id_encrypted: gAAAAABpx51xee2xVL7cpjiJq8ZvSR0pBikEoVZgTd4ptqgtl2nNOTFZN8LNb87uUBGVuUwY4wpFJ2gI1BoBlM0cf_VOrYotQg==
-    pw_encrypted: gAAAAABpx51xlQkH9PAQIMxnnBQYHkHK4d_cT_xa6fZLTavA08xse8nq22YnCq3UbQCtiOoYYyWULhNQ3x0F3fGxANWCb1VCtw==
+    id_encrypted: gAAAAABpx7CtwweC3SWx9RmYms21Fhy80_B6y0P8sL_GyVT45E1xeVs3wIo5RFooFsvMZi_CVbYdzAFXKxHst_V3czH6uiDt2g==
+    pw_encrypted: gAAAAABpx7Ctv59ws9dtxzMHuasDKzb7rVWOti79UXlsDTC-noPs15EVhgUhgeBsKO8Xaie7JWOOgpH0NaD4ggbGRbAcVmmsUA==
 schedule:
   times:
   - 09:00
