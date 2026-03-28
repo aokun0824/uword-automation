@@ -1,33 +1,47 @@
 #!/usr/bin/env python3
 """
 ユーワード自動投稿スクリプト
-EGAO Works（えがおワークス）× 今日の実際のAIニュース
+設定は config.yaml で管理します
 """
 import os
 import sys
 import asyncio
 import feedparser
+import yaml
 from datetime import datetime
 from pathlib import Path
 import anthropic
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
-# ===== 設定 =====
-HISTORY_FILE = Path(__file__).parent / "history.txt"
-MAX_HISTORY = 10
-TITLE_MAX = 30
-BODY_MAX = 140
-LOGIN_URL = "https://u-word.com/horby/login"
-POST_URL = "https://u-word.com/horby/myPage/realTimePost"
-EDIT_REDIRECT_URL = "realTimeEdit"
-EDIT_REDIRECT_URL = "realTimeEdit"
-MODEL = "claude-haiku-4-5"
+# ===== 設定読み込み =====
+CONFIG_FILE = Path(__file__).parent / "config.yaml"
 
-# Google News RSS（AI関連ニュース 日本語）
-RSS_FEEDS = [
-    "https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja",
-    "https://news.google.com/rss/search?q=ChatGPT+生成AI&hl=ja&gl=JP&ceid=JP:ja",
-]
+def load_config() -> dict:
+    if not CONFIG_FILE.exists():
+        print(f"[ERROR] 設定ファイルが見つかりません: {CONFIG_FILE}", file=sys.stderr)
+        sys.exit(1)
+    with CONFIG_FILE.open(encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+CONFIG = load_config()
+
+# 設定から値を取得
+HISTORY_FILE = Path(__file__).parent / "history.txt"
+MAX_HISTORY   = CONFIG["post"]["history_max"]
+TITLE_MAX     = CONFIG["post"]["title_max"]
+BODY_MAX      = CONFIG["post"]["body_max"]
+POST_PREFIX   = CONFIG["post"]["prefix"]
+MODEL         = CONFIG["ai"]["model"]
+MAX_TOKENS    = CONFIG["ai"]["max_tokens"]
+RSS_FEEDS     = CONFIG["rss"]["feeds"]
+USER_PATH     = CONFIG["uword"]["user_path"]
+LOGIN_URL     = f"https://u-word.com/{USER_PATH}/login"
+POST_URL      = f"https://u-word.com/{USER_PATH}/myPage/realTimePost"
+
+PROFILE_NAME  = CONFIG["profile"]["name"]
+PROFILE_DESC  = CONFIG["profile"]["description"]
+PROFILE_CTA   = CONFIG["profile"]["cta"]
+TONE_RULES    = CONFIG["prompt"]["tone"]
 
 
 def fetch_news(max_items: int = 5) -> list[str]:
@@ -67,28 +81,24 @@ def generate_post(history: list[str], news: list[str]) -> tuple[str, str]:
     """タイトルと本文を別々に生成して返す"""
     client = anthropic.Anthropic()
     history_block = "\n".join(f"- {h}" for h in history) if history else "（履歴なし）"
-    news_block = "\n".join(f"- {n}" for n in news) if news else "（ニュース取得なし）"
+    news_block    = "\n".join(f"- {n}" for n in news)     if news    else "（ニュース取得なし）"
+    tone_block    = "\n".join(f"- {t}" for t in TONE_RULES)
 
-    prompt = f"""あなたはEGAO Works（えがおワークス）のSNS担当スタッフです。
-えがおワークスは、AIを活用したデザイン・HP・チラシ制作・アプリ開発・デジタルサポート・AI講座を提供している、初心者や個人事業主向けのサービスです。
+    prompt = f"""あなたは{PROFILE_NAME}のSNS担当スタッフです。
+{PROFILE_NAME}は、{PROFILE_DESC}。
 
 【今日の実際のAIニュース（RSS取得）】
 {news_block}
 
-上のニュースの中から1つ選び、それをきっかけに「えがおワークスに相談しよう」と思ってもらえるような投稿を作ってください。
+上のニュースの中から1つ選び、それをきっかけに「{PROFILE_NAME}に相談しよう」と思ってもらえるような投稿を作ってください。
 
 【出力形式】必ず以下の形式のみで出力（余計な説明・前置き・コメントは一切不要）：
-TITLE: （見出し・25文字以内）
-BODY: （本文・140文字以内）
+TITLE: （見出し・{TITLE_MAX}文字以内）
+BODY: （本文・{BODY_MAX}文字以内）
 
 【文体・内容のルール】
-- 友達に話しかけるような、自然でやわらかい口語調で書く（「〜ですよね」「〜って知ってましたか？」など）
-- 「AI」「ChatGPT」など話題のキーワードを使って共感を引き出す
-- 「初心者でも大丈夫」「難しく考えなくていい」など安心できる言葉を入れる
-- 最後はえがおワークスへの自然な誘導で締める（「えがおワークスに気軽に相談してみてください」「えがおワークスがそのお手伝いをします」など）
-- 「速報」「リアルタイム」のような仰々しい言葉は使わない
-- URLやハッシュタグは不要
-- 過去投稿との重複を避ける
+{tone_block}
+- 最後は「{PROFILE_CTA}」のような自然な誘導で締める
 
 【過去の投稿履歴（直近{MAX_HISTORY}件）】
 {history_block}
@@ -97,7 +107,7 @@ BODY: （本文・140文字以内）
 
     message = client.messages.create(
         model=MODEL,
-        max_tokens=300,
+        max_tokens=MAX_TOKENS,
         messages=[{"role": "user", "content": prompt}],
     )
     raw = message.content[0].text.strip()
@@ -112,14 +122,13 @@ BODY: （本文・140文字以内）
             body = line.replace("BODY:", "").strip()
 
     if not title:
-        title = raw[:25]
+        title = raw[:TITLE_MAX]
     if not body:
         body = raw
 
     if len(title) > TITLE_MAX:
         title = title[:TITLE_MAX]
-    prefix = "【この投稿はAIで自動投稿しています】\n"
-    body = prefix + body
+    body = POST_PREFIX + body
     if len(body) > BODY_MAX:
         body = body[:BODY_MAX]
 
@@ -169,7 +178,6 @@ async def post_to_uword(title: str, body: str) -> bool:
             print(f"[ページタイトル] {await page.title()}")
 
             await page.wait_for_url(lambda url: "realTimePost" in url or "realTimeEdit" in url, timeout=10000)
-            await page.wait_for_url(lambda url: "realTimePost" in url or "realTimeEdit" in url, timeout=10000)
             await page.wait_for_selector("ion-input[name='title'] input", state="visible", timeout=30000)
             await page.fill("ion-input[name='title'] input", title, timeout=10000)
             print(f"[タイトル入力] 完了: {title}")
@@ -206,7 +214,7 @@ async def post_to_uword(title: str, body: str) -> bool:
 
 
 async def main():
-    print(f"=== EGAO Works 自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
+    print(f"=== {PROFILE_NAME} 自動投稿 開始 ({datetime.now():%Y-%m-%d %H:%M:%S}) ===")
     history = load_history()
     print(f"[履歴] {len(history)} 件を参照")
     news = fetch_news()

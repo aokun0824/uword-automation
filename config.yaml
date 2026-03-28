@@ -1,0 +1,35 @@
+# ユーワード自動投稿 設定ファイル
+# このファイルを編集して投稿内容・プロフィールをカスタマイズできます
+
+profile:
+  name: "EGAO Works（えがおワークス）"
+  description: "AIを活用したデザイン・HP・チラシ制作・アプリ開発・デジタルサポート・AI講座を提供している、初心者や個人事業主向けのサービス"
+  cta: "えがおワークスに気軽に相談してみてください"
+
+uword:
+  user_path: "horby"  # ユーワードのマイページURL内のユーザーパス
+
+post:
+  title_max: 30
+  body_max: 140
+  history_max: 10
+  prefix: "【この投稿はAIで自動投稿しています】\n"
+
+rss:
+  feeds:
+    - "https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja"
+    - "https://news.google.com/rss/search?q=ChatGPT+生成AI&hl=ja&gl=JP&ceid=JP:ja"
+
+ai:
+  model: "claude-haiku-4-5"
+  max_tokens: 300
+
+prompt:
+  tone:
+    - "友達に話しかけるような、自然でやわらかい口語調で書く（「〜ですよね」「〜って知ってましたか？」など）"
+    - "「AI」「ChatGPT」など話題のキーワードを使って共感を引き出す"
+    - "「初心者でも大丈夫」「難しく考えなくていい」など安心できる言葉を入れる"
+    - "最後は自然な誘導で締める"
+    - "「速報」「リアルタイム」のような仰々しい言葉は使わない"
+    - "URLやハッシュタグは不要"
+    - "過去投稿との重複を避ける"

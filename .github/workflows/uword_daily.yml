@@ -27,6 +27,14 @@ jobs:
       - name: 依存ライブラリをインストール
         run: pip install -r requirements.txt
 
+      - name: 設定ファイルの確認
+        run: |
+          if [ ! -f config.yaml ]; then
+            echo "ERROR: config.yaml が見つかりません"
+            exit 1
+          fi
+          echo "config.yaml を確認しました"
+
       - name: Playwright (Chromium) をインストール
         run: playwright install chromium --with-deps
 
