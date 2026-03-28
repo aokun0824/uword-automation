@@ -100,9 +100,12 @@ def generate_post(config: dict, history: list[str], news: list[str]) -> tuple[st
 TITLE: （見出し・{post_cfg['title_max']}文字以内）
 BODY: （本文・{post_cfg['body_max']}文字以内）
 
+【重要な制約】
+- BODYの冒頭に「【この投稿はAIで自動投稿しています】」は絶対に含めないこと（システムが自動で付与します）
+- BODYの末尾は必ず「{profile['cta']}」で締めること
+
 【文体・内容のルール】
 {tone_block}
-- 最後は「{profile['cta']}」のような自然な誘導で締める
 
 【過去の投稿履歴（直近{post_cfg['history_max']}件）】
 {history_block}
@@ -129,6 +132,11 @@ BODY: （本文・{post_cfg['body_max']}文字以内）
         title = raw[:post_cfg["title_max"]]
     if not body:
         body = raw
+
+    # Claude がプレフィックスを誤って含めた場合は除去
+    prefix_clean = post_cfg["prefix"].replace("\\n", "\n").strip()
+    if body.startswith(prefix_clean):
+        body = body[len(prefix_clean):].lstrip()
 
     if len(title) > post_cfg["title_max"]:
         title = title[:post_cfg["title_max"]]
