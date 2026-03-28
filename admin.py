@@ -248,6 +248,67 @@ def register():
     return render_template("register.html")
 
 
+# ── 管理者: 新規会員作成 ───────────────────────────────────────────────────
+
+@app.route("/admin/new", methods=["GET", "POST"])
+def admin_new():
+    if r := require_login(): return r
+    if not is_admin(): return redirect(url_for("index"))
+
+    if request.method == "POST":
+        slug      = request.form.get("slug", "").strip().lower().replace(" ", "-")
+        name      = request.form.get("name", "").strip()
+        user_path = request.form.get("user_path", "").strip()
+        uword_id  = request.form.get("uword_id", "").strip()
+        uword_pw  = request.form.get("uword_pw", "").strip()
+
+        if not all([slug, name, user_path, uword_id, uword_pw]):
+            flash("すべての項目を入力してください", "danger")
+            return render_template("admin_new.html")
+
+        path = f"users/{slug}.yaml"
+        existing, _ = gh_read_yaml(path)
+        if existing:
+            flash(f"スラグ '{slug}' はすでに使用されています", "danger")
+            return render_template("admin_new.html")
+
+        try:
+            id_enc = encrypt_str(uword_id)
+            pw_enc = encrypt_str(uword_pw)
+        except RuntimeError as e:
+            flash(f"暗号化エラー: {e}", "danger")
+            return render_template("admin_new.html")
+
+        new_config = {
+            "profile": {
+                "name":        name,
+                "description": request.form.get("description", ""),
+                "cta":         request.form.get("cta", "お気軽にご相談ください"),
+            },
+            "uword": {
+                "user_path":   user_path,
+                "credentials": {"id_encrypted": id_enc, "pw_encrypted": pw_enc},
+            },
+            "schedule": {"times": ["09:00", "21:00"], "timezone": "Asia/Tokyo"},
+            "post": {
+                "title_max": 30, "body_max": 140,
+                "history_max": 10,
+                "prefix": "【この投稿はAIで自動投稿しています】\n",
+            },
+            "rss":    {"feeds": ["https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja"]},
+            "ai":     {"model": "claude-haiku-4-5", "max_tokens": 300},
+            "prompt": {"tone": default_tone()},
+        }
+
+        if gh_create_yaml(path, new_config, f"feat: 新規会員 {slug} を追加"):
+            flash(f"会員 '{slug}' を作成しました", "success")
+            return redirect(url_for("dashboard"))
+        else:
+            flash("作成に失敗しました", "danger")
+
+    return render_template("admin_new.html")
+
+
 # ── 管理者: ダッシュボード ──────────────────────────────────────────────────
 
 @app.route("/dashboard")
@@ -256,6 +317,30 @@ def dashboard():
     if not is_admin(): return redirect(url_for("index"))
     members = get_all_members()
     return render_template("dashboard.html", members=members)
+
+
+# ── 管理者: 会員削除 ────────────────────────────────────────────────────────
+
+@app.route("/admin/member/<slug>/delete", methods=["POST"])
+def admin_delete_member(slug):
+    if r := require_login(): return r
+    if not is_admin(): return redirect(url_for("index"))
+
+    repo = get_repo()
+    deleted = []
+    for path in [f"users/{slug}.yaml", f"history_{slug}.txt"]:
+        try:
+            f = repo.get_contents(path)
+            repo.delete_file(path, f"chore: 会員 {slug} を削除", f.sha)
+            deleted.append(path)
+        except UnknownObjectException:
+            pass
+        except GithubException as e:
+            flash(f"{path} の削除に失敗しました: {e}", "danger")
+            return redirect(url_for("dashboard"))
+
+    flash(f"会員 '{slug}' を削除しました（{', '.join(deleted)}）", "success")
+    return redirect(url_for("dashboard"))
 
 
 # ── 管理者: 認証情報リセット ───────────────────────────────────────────────
