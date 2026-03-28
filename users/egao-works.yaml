@@ -27,7 +27,7 @@ ai:
   model: claude-haiku-4-5
   max_tokens: 300
 auth:
-  password_hash: scrypt:32768:8:1$cyEh5Lglhg911nNZ$eafbe18a16fa7429c13cf75e6590ddee57bc56d7206beca762789f374f11bfd97dbb6e9d5e83092ed5613585f72f2aaf84f81965ad713e22b483ce300780f725
+  password_hash: scrypt:32768:8:1$4dHy5Z3RCQJ09xgx$2e8a941a85dfd52d17595fce595b27b05ef631ecc08bf00551489c45c144b6996f41acfd2b057f3823054bb77905d6070f32b63c32bf090fb564a5a25fb03aba
 prompt:
   tone:
   - 友達に話しかけるような、自然でやわらかい口語調で書く（「〜ですよね」「〜って知ってましたか？」など）
