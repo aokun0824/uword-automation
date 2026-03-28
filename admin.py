@@ -109,6 +109,61 @@ def get_history(slug: str) -> list:
     except (GithubException, UnknownObjectException):
         return []
 
+INDUSTRY_FEEDS = {
+    "ai": {
+        "label": "AI・IT・デジタル全般",
+        "feeds": [
+            "https://news.google.com/rss/search?q=ChatGPT+使い方&hl=ja&gl=JP&ceid=JP:ja",
+            "https://news.google.com/rss/search?q=生成AI+活用+初心者&hl=ja&gl=JP&ceid=JP:ja",
+            "https://news.google.com/rss/search?q=AI+便利+ツール&hl=ja&gl=JP&ceid=JP:ja",
+        ],
+    },
+    "beauty": {
+        "label": "美容・サロン・エステ",
+        "feeds": [
+            "https://news.google.com/rss/search?q=美容+トレンド&hl=ja&gl=JP&ceid=JP:ja",
+            "https://news.google.com/rss/search?q=スキンケア+最新&hl=ja&gl=JP&ceid=JP:ja",
+        ],
+    },
+    "food": {
+        "label": "飲食・グルメ・カフェ",
+        "feeds": [
+            "https://news.google.com/rss/search?q=グルメ+飲食+トレンド&hl=ja&gl=JP&ceid=JP:ja",
+            "https://news.google.com/rss/search?q=カフェ+スイーツ+新店&hl=ja&gl=JP&ceid=JP:ja",
+        ],
+    },
+    "health": {
+        "label": "健康・医療・整体",
+        "feeds": [
+            "https://news.google.com/rss/search?q=健康+ウェルネス&hl=ja&gl=JP&ceid=JP:ja",
+            "https://news.google.com/rss/search?q=腰痛+肩こり+解消&hl=ja&gl=JP&ceid=JP:ja",
+        ],
+    },
+    "education": {
+        "label": "教育・スクール・講座",
+        "feeds": [
+            "https://news.google.com/rss/search?q=オンライン学習+スキルアップ&hl=ja&gl=JP&ceid=JP:ja",
+            "https://news.google.com/rss/search?q=資格+勉強+おすすめ&hl=ja&gl=JP&ceid=JP:ja",
+        ],
+    },
+    "other": {
+        "label": "その他（AI最新ニュース全般）",
+        "feeds": [
+            "https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja",
+            "https://news.google.com/rss/search?q=ChatGPT+生成AI&hl=ja&gl=JP&ceid=JP:ja",
+        ],
+    },
+}
+
+
+def industry_from_feeds(feeds: list) -> str:
+    """保存済みフィードから業種キーを逆引きする（なければ 'other'）"""
+    for key, val in INDUSTRY_FEEDS.items():
+        if feeds == val["feeds"]:
+            return key
+    return "other"
+
+
 def default_tone():
     return [
         "友達に話しかけるような、自然でやわらかい口語調で書く",
@@ -222,6 +277,9 @@ def register():
             flash(f"暗号化エラー: {e}", "danger")
             return render_template("register.html")
 
+        industry = request.form.get("industry", "other")
+        feeds = INDUSTRY_FEEDS.get(industry, INDUSTRY_FEEDS["other"])["feeds"]
+
         new_config = {
             "profile": {"name": name, "description": description, "cta": cta},
             "uword": {
@@ -234,7 +292,7 @@ def register():
                 "history_max": 10,
                 "prefix": "【この投稿はAIで自動投稿しています】\n",
             },
-            "rss":    {"feeds": ["https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja"]},
+            "rss":    {"feeds": feeds},
             "ai":     {"model": "claude-haiku-4-5", "max_tokens": 300},
             "prompt": {"tone": default_tone()},
         }
@@ -281,6 +339,9 @@ def admin_new():
             flash(f"暗号化エラー: {e}", "danger")
             return render_template("admin_new.html")
 
+        industry = request.form.get("industry", "other")
+        feeds = INDUSTRY_FEEDS.get(industry, INDUSTRY_FEEDS["other"])["feeds"]
+
         new_config = {
             "profile": {
                 "name":        name,
@@ -297,7 +358,7 @@ def admin_new():
                 "history_max": 10,
                 "prefix": "【この投稿はAIで自動投稿しています】\n",
             },
-            "rss":    {"feeds": ["https://news.google.com/rss/search?q=AI+人工知能&hl=ja&gl=JP&ceid=JP:ja"]},
+            "rss":    {"feeds": feeds},
             "ai":     {"model": "claude-haiku-4-5", "max_tokens": 300},
             "prompt": {"tone": default_tone()},
         }
@@ -401,8 +462,15 @@ def member_edit(slug):
 
         config["post"]["prefix"] = request.form.get("post_prefix", "")
 
-        feeds_raw = request.form.get("rss_feeds", "")
-        config["rss"]["feeds"] = [f.strip() for f in feeds_raw.splitlines() if f.strip()]
+        if is_admin():
+            # 管理者はURLを直接編集できる
+            feeds_raw = request.form.get("rss_feeds", "")
+            config["rss"]["feeds"] = [f.strip() for f in feeds_raw.splitlines() if f.strip()]
+        else:
+            # 会員は業種セレクターで変更
+            industry = request.form.get("industry", "")
+            if industry:
+                config["rss"]["feeds"] = INDUSTRY_FEEDS.get(industry, INDUSTRY_FEEDS["other"])["feeds"]
 
         tone_raw = request.form.get("prompt_tone", "")
         config["prompt"]["tone"] = [t.strip() for t in tone_raw.splitlines() if t.strip()]
@@ -418,7 +486,10 @@ def member_edit(slug):
         else:
             flash("保存に失敗しました", "danger")
 
-    return render_template("member_edit.html", slug=slug, config=config, is_admin=is_admin())
+    current_industry = industry_from_feeds(config.get("rss", {}).get("feeds", []))
+    return render_template("member_edit.html", slug=slug, config=config,
+                           is_admin=is_admin(), industry_feeds=INDUSTRY_FEEDS,
+                           current_industry=current_industry)
 
 
 # ── 会員: 投稿履歴 ──────────────────────────────────────────────────────────

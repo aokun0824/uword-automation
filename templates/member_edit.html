@@ -78,16 +78,30 @@
   <!-- RSS -->
   <div class="card mb-4">
     <div class="card-header py-3">
-      <h5 class="mb-0"><i class="bi bi-rss me-2 text-primary"></i>RSSフィード</h5>
+      <h5 class="mb-0"><i class="bi bi-rss me-2 text-primary"></i>投稿ネタのジャンル</h5>
     </div>
     <div class="card-body">
+      {% if is_admin %}
+      <!-- 管理者: URL直接編集 -->
       <label class="form-label fw-semibold">フィードURL（1行に1件）</label>
-      <textarea name="rss_feeds" class="form-control" rows="4"
-                placeholder="https://news.google.com/rss/search?q=...">{{ config.rss.feeds | join('\n') }}</textarea>
-      <div class="form-text mt-1">
-        取得したニュースをもとに投稿内容を生成します。業種に合ったキーワードを設定してください。<br>
-        例: <code>https://news.google.com/rss/search?q=美容+トレンド&amp;hl=ja&amp;gl=JP&amp;ceid=JP:ja</code>
+      <textarea name="rss_feeds" class="form-control" rows="4">{{ config.rss.feeds | join('\n') }}</textarea>
+      <div class="form-text mt-1">取得したニュースをもとに投稿内容を生成します。</div>
+      {% else %}
+      <!-- 会員: 業種セレクター -->
+      <p class="text-muted small mb-3">選んだジャンルに合ったニュースをもとに投稿文が自動生成されます。</p>
+      <div class="row g-2">
+        {% for key, val in industry_feeds.items() %}
+        <div class="col-6 col-md-4">
+          <div class="form-check border rounded p-2 h-100 {% if current_industry == key %}border-primary bg-primary-subtle{% endif %}">
+            <input class="form-check-input" type="radio" name="industry"
+                   value="{{ key }}" id="ind_{{ key }}"
+                   {% if current_industry == key %}checked{% endif %}>
+            <label class="form-check-label w-100" for="ind_{{ key }}">{{ val.label }}</label>
+          </div>
+        </div>
+        {% endfor %}
       </div>
+      {% endif %}
     </div>
   </div>
 
