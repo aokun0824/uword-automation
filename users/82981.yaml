@@ -1,0 +1,37 @@
+profile:
+  name: 【関内】厳選黒毛和牛と本格韓国料理を愉しむお店「濱や本館」
+  description: こだわりは、独自のルートで仕入れる鮮度抜群の国産黒毛和牛。肉本来の旨味を引き出すカットと、お酒が進む本場の韓国料理が自慢です。一度食べれば虜になる「てっぱんメニュー」を多数ご用意。キムチ、焼肉のタレ、厳選和牛など様々なメニューを用意しています。
+  cta: 濱や自慢の味をぜひお試しください！
+uword:
+  user_path: teppan
+  credentials:
+    id_encrypted: gAAAAABpyPYwGRhc3uLJT1Vfbu6UIJmwGNXkben3jwshAxyrv3FF6Ffj2Bu51PqLT6DG3YlfZAAhHFiMbYCvNKxWDA8DHNkV5Q==
+    pw_encrypted: gAAAAABpyPYwO4m5vQo4oVDQombHjGVs1H-IEUP4iU_dl7EJO-XHAnhjDAm84nKZ0WpcKNMsa3Mwkttd37ZYdJMALg881wgNUA==
+schedule:
+  times:
+  - 09:00
+  - '21:00'
+  timezone: Asia/Tokyo
+post:
+  title_max: 50
+  body_max: 500
+  history_max: 10
+  prefix: '【この投稿はAIで自動投稿しています】
+
+    '
+rss:
+  feeds:
+  - https://news.google.com/rss/search?q=グルメ+飲食+トレンド&hl=ja&gl=JP&ceid=JP:ja
+  - https://news.google.com/rss/search?q=カフェ+スイーツ+新店&hl=ja&gl=JP&ceid=JP:ja
+ai:
+  model: claude-haiku-4-5
+  max_tokens: 500
+prompt:
+  tone:
+  - 友達に話しかけるような、自然でやわらかい口語調で書く
+  - 話題のキーワードを使って共感を引き出す
+  - 安心できる言葉を入れる
+  - 最後は自然な誘導で締める
+  - 「速報」「リアルタイム」のような仰々しい言葉は使わない
+  - URLやハッシュタグは不要
+  - 過去投稿との重複を避ける
