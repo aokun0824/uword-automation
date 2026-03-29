@@ -29,7 +29,7 @@ import anthropic
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 
-def is_scheduled_now(config: dict, tolerance_minutes: int = 30) -> bool:
+def is_scheduled_now(config: dict, tolerance_minutes: int = 45) -> bool:
     """現在時刻がschedule.timesに該当するか判定する（±tolerance分の余裕）"""
     schedule = config.get("schedule", {})
     times = schedule.get("times", [])
