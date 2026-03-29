@@ -10,15 +10,13 @@ uword:
 schedule:
   times:
   - 09:00
-  - '21:00'
+  - '19:00'
   timezone: Asia/Tokyo
 post:
   title_max: 50
   body_max: 500
   history_max: 10
-  prefix: '【この投稿はAIで自動投稿しています】
-
-    '
+  prefix: 【この投稿はAIで自動投稿しています】\n
 rss:
   feeds:
   - https://news.google.com/rss/search?q=グルメ+飲食+トレンド&hl=ja&gl=JP&ceid=JP:ja
@@ -35,3 +33,14 @@ prompt:
   - 「速報」「リアルタイム」のような仰々しい言葉は使わない
   - URLやハッシュタグは不要
   - 過去投稿との重複を避ける
+keywords:
+- 横浜
+- 焼肉と韓国料理
+- マルシェで大好評
+menu_items:
+- 【まずはこれ】濱やのキムチお試し3種セット
+- 濱や本館秘伝の特製焼肉のタレ【170ml】
+- ユーワード限定‼️ 国産黒毛和牛リブロース【130g】
+next_post:
+  title: ''
+  body: ''
