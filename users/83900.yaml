@@ -10,7 +10,7 @@ uword:
 schedule:
   times:
   - 09:00
-  - '19:00'
+  - '18:38'
   timezone: Asia/Tokyo
 post:
   title_max: 50
