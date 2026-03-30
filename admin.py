@@ -486,7 +486,20 @@ def member_edit(slug):
         menu_raw = request.form.get("menu_items", "")
         config["menu_items"] = [m.strip() for m in menu_raw.splitlines() if m.strip()]
 
-        # 次回投稿の自由文章
+        # プランモード
+        config["plan_mode"] = request.form.get("plan_mode", "ai")
+
+        # 手書きプラン: 週間投稿キュー
+        weekly_count = int(request.form.get("weekly_count", "0") or "0")
+        weekly_posts = []
+        for i in range(weekly_count):
+            t = request.form.get(f"weekly_title_{i}", "").strip()
+            b = request.form.get(f"weekly_body_{i}", "").strip()
+            if t or b:
+                weekly_posts.append({"title": t, "body": b})
+        config["weekly_posts"] = weekly_posts
+
+        # 次回投稿の自由文章（AIプランのみ）
         config.setdefault("next_post", {})
         config["next_post"]["title"] = request.form.get("next_title", "").strip()
         config["next_post"]["body"]  = request.form.get("next_body", "").strip()

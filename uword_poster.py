@@ -318,23 +318,42 @@ async def run_single(config_path: str, force: bool = False) -> bool:
     history = load_history(history_file, config["post"]["history_max"])
     print(f"[履歴] {len(history)} 件を参照")
 
-    # 自由文章が設定されていればそちらを優先
-    manual = config.get("next_post", {})
-    manual_title = (manual.get("title") or "").strip()
-    manual_body  = (manual.get("body")  or "").strip()
+    plan_mode = config.get("plan_mode", "ai")
+    use_weekly = False
 
-    if manual_title and manual_body:
-        print("[モード] 手動投稿文を使用")
-        title = manual_title
-        body  = config["post"]["prefix"].replace("\\n", "\n") + manual_body
+    if plan_mode == "manual":
+        # 手書きプラン: キューから先頭を取り出す
+        weekly_posts = config.get("weekly_posts") or []
+        if not weekly_posts:
+            print(f"=== {profile_name} 手書きキューが空のためスキップ ===")
+            return False
+        post = weekly_posts[0]
+        title = (post.get("title") or "").strip()
+        raw_body = (post.get("body") or "").strip()
+        body = config["post"]["prefix"].replace("\\n", "\n") + raw_body
         if len(body) > config["post"]["body_max"]:
             body = body[:config["post"]["body_max"]]
         use_manual = True
+        use_weekly = True
+        print(f"[手書きプラン] キューから取得（残り{len(weekly_posts) - 1}件）")
     else:
-        news = fetch_news(config["rss"]["feeds"])
-        print("[Claude API] 投稿文を生成中...")
-        title, body = generate_post(config, history, news)
-        use_manual = False
+        # AIプラン: next_post またはAI生成
+        manual = config.get("next_post", {})
+        manual_title = (manual.get("title") or "").strip()
+        manual_body  = (manual.get("body")  or "").strip()
+
+        if manual_title and manual_body:
+            print("[モード] 手動投稿文を使用")
+            title = manual_title
+            body  = config["post"]["prefix"].replace("\\n", "\n") + manual_body
+            if len(body) > config["post"]["body_max"]:
+                body = body[:config["post"]["body_max"]]
+            use_manual = True
+        else:
+            news = fetch_news(config["rss"]["feeds"])
+            print("[Claude API] 投稿文を生成中...")
+            title, body = generate_post(config, history, news)
+            use_manual = False
 
     print(f"[タイトル] {title}")
     print(f"[本文] {body}")
@@ -344,8 +363,15 @@ async def run_single(config_path: str, force: bool = False) -> bool:
 
     save_history(history_file, title, body)
 
-    # 手動投稿文を使った場合、YAMLからクリアする
-    if use_manual:
+    if use_weekly:
+        # 手書きキューの先頭を削除して保存
+        config["weekly_posts"] = (config.get("weekly_posts") or [])[1:]
+        with config_path.open("w", encoding="utf-8") as f:
+            import yaml as _yaml
+            _yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        print(f"[手書きプラン] 使用済み・削除しました（残り{len(config['weekly_posts'])}件）")
+    elif use_manual:
+        # next_post をクリアして保存
         config["next_post"] = {"title": "", "body": ""}
         with config_path.open("w", encoding="utf-8") as f:
             import yaml as _yaml

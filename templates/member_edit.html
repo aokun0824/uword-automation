@@ -17,7 +17,38 @@
   </a>
 </div>
 
-<form method="post">
+<form method="post" id="mainForm">
+  <!-- プランモード -->
+  <div class="card mb-4 border border-primary">
+    <div class="card-header py-3 bg-primary-subtle">
+      <h5 class="mb-0"><i class="bi bi-toggles me-2 text-primary"></i>投稿プラン</h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="form-check border rounded p-3 h-100 {% if (config.plan_mode or 'ai') == 'ai' %}border-primary bg-primary-subtle{% endif %}" id="plan_ai_card">
+            <input class="form-check-input" type="radio" name="plan_mode" value="ai" id="plan_ai"
+                   {% if (config.plan_mode or 'ai') == 'ai' %}checked{% endif %}>
+            <label class="form-check-label d-block" for="plan_ai">
+              <span class="fw-bold">AIおまかせプラン</span><br>
+              <span class="text-muted small">AIが毎回最新ニュースをもとに投稿文を自動生成します</span>
+            </label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check border rounded p-3 h-100 {% if config.plan_mode == 'manual' %}border-primary bg-primary-subtle{% endif %}" id="plan_manual_card">
+            <input class="form-check-input" type="radio" name="plan_mode" value="manual" id="plan_manual"
+                   {% if config.plan_mode == 'manual' %}checked{% endif %}>
+            <label class="form-check-label d-block" for="plan_manual">
+              <span class="fw-bold">手書きプラン</span><br>
+              <span class="text-muted small">投稿文をあらかじめ登録し、順番に自動投稿します</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- プロフィール -->
   <div class="card mb-4">
     <div class="card-header py-3">
@@ -75,8 +106,51 @@
     </div>
   </div>
 
+  <!-- 手書きプラン: 週間投稿キュー -->
+  <div class="card mb-4 border border-success ai-hidden-section" id="weekly_posts_card">
+    <div class="card-header py-3 bg-success-subtle">
+      <h5 class="mb-0"><i class="bi bi-journal-text me-2 text-success"></i>週間投稿キュー</h5>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        投稿文をリストで登録しておくと、投稿時刻ごとに上から順に自動投稿されます。<br>
+        投稿が終わったものは自動で削除されます。なくなったら投稿はスキップされます。
+      </p>
+      <input type="hidden" name="weekly_count" id="weekly_count" value="{{ (config.weekly_posts or []) | length }}">
+      <div id="weekly_list">
+        {% for post in (config.weekly_posts or []) %}
+        <div class="weekly-item border rounded p-3 mb-3 bg-light">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-semibold text-muted small">投稿 {{ loop.index }}</span>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeWeeklyPost(this)">
+              <i class="bi bi-trash"></i> 削除
+            </button>
+          </div>
+          <div class="mb-2">
+            <input type="text" name="weekly_title_{{ loop.index0 }}" class="form-control form-control-sm"
+                   placeholder="タイトル（{{ config.post.title_max }}文字以内）"
+                   maxlength="{{ config.post.title_max }}"
+                   value="{{ post.title or '' }}">
+          </div>
+          <textarea name="weekly_body_{{ loop.index0 }}" class="form-control form-control-sm" rows="3"
+                    placeholder="本文">{{ post.body or '' }}</textarea>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn btn-outline-success btn-sm" onclick="addWeeklyPost()">
+        <i class="bi bi-plus-circle me-1"></i>投稿を追加
+      </button>
+      {% set remaining = (config.weekly_posts or []) | length %}
+      {% if remaining > 0 %}
+      <div class="alert alert-info small py-2 mt-3 mb-0">
+        <i class="bi bi-info-circle me-1"></i>現在 {{ remaining }} 件の投稿が登録されています
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
   <!-- RSS -->
-  <div class="card mb-4">
+  <div class="card mb-4 ai-only-section">
     <div class="card-header py-3">
       <h5 class="mb-0"><i class="bi bi-rss me-2 text-primary"></i>投稿ネタのジャンル</h5>
     </div>
@@ -106,7 +180,7 @@
   </div>
 
   <!-- キーワード -->
-  <div class="card mb-4">
+  <div class="card mb-4 ai-only-section">
     <div class="card-header py-3">
       <h5 class="mb-0"><i class="bi bi-tags me-2 text-primary"></i>アピールしたいキーワード</h5>
     </div>
@@ -133,7 +207,7 @@
   </div>
 
   <!-- メニュー・サービス -->
-  <div class="card mb-4">
+  <div class="card mb-4 ai-only-section">
     <div class="card-header py-3">
       <h5 class="mb-0"><i class="bi bi-list-ul me-2 text-primary"></i>紹介したいメニュー・サービス</h5>
     </div>
@@ -145,8 +219,8 @@
     </div>
   </div>
 
-  <!-- 次回投稿の自由文章 -->
-  <div class="card mb-4 border border-success">
+  <!-- 次回投稿の自由文章（AIプランのみ） -->
+  <div class="card mb-4 border border-success ai-only-section">
     <div class="card-header py-3 bg-success-subtle">
       <h5 class="mb-0"><i class="bi bi-pencil-square me-2 text-success"></i>次回投稿の文章を指定する</h5>
     </div>
@@ -178,7 +252,7 @@
   </div>
 
   <!-- 文体ルール -->
-  <div class="card mb-4">
+  <div class="card mb-4 ai-only-section">
     <div class="card-header py-3">
       <h5 class="mb-0"><i class="bi bi-pen me-2 text-primary"></i>投稿の文体・トーン</h5>
     </div>
@@ -220,4 +294,69 @@
     </button>
   </div>
 </form>
+
+<script>
+const titleMax = {{ config.post.title_max }};
+
+function updatePlanMode() {
+  const isManual = document.getElementById('plan_manual').checked;
+  document.querySelectorAll('.ai-only-section').forEach(el => {
+    el.style.display = isManual ? 'none' : '';
+  });
+  document.getElementById('weekly_posts_card').style.display = isManual ? '' : 'none';
+  // カード枠のハイライト
+  document.getElementById('plan_ai_card').classList.toggle('border-primary', !isManual);
+  document.getElementById('plan_ai_card').classList.toggle('bg-primary-subtle', !isManual);
+  document.getElementById('plan_manual_card').classList.toggle('border-primary', isManual);
+  document.getElementById('plan_manual_card').classList.toggle('bg-primary-subtle', isManual);
+}
+
+function getWeeklyCount() {
+  return parseInt(document.getElementById('weekly_count').value) || 0;
+}
+
+function updateWeeklyCount(delta) {
+  const el = document.getElementById('weekly_count');
+  el.value = Math.max(0, getWeeklyCount() + delta);
+}
+
+function addWeeklyPost() {
+  const idx = getWeeklyCount();
+  const list = document.getElementById('weekly_list');
+  const div = document.createElement('div');
+  div.className = 'weekly-item border rounded p-3 mb-3 bg-light';
+  div.innerHTML = `
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="fw-semibold text-muted small">投稿 ${idx + 1}</span>
+      <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeWeeklyPost(this)">
+        <i class="bi bi-trash"></i> 削除
+      </button>
+    </div>
+    <div class="mb-2">
+      <input type="text" name="weekly_title_${idx}" class="form-control form-control-sm"
+             placeholder="タイトル（${titleMax}文字以内）" maxlength="${titleMax}">
+    </div>
+    <textarea name="weekly_body_${idx}" class="form-control form-control-sm" rows="3"
+              placeholder="本文"></textarea>
+  `;
+  list.appendChild(div);
+  updateWeeklyCount(1);
+}
+
+function removeWeeklyPost(btn) {
+  btn.closest('.weekly-item').remove();
+  // インデックスを振り直す
+  const items = document.querySelectorAll('.weekly-item');
+  items.forEach((item, i) => {
+    item.querySelector('input[type=text]').name = `weekly_title_${i}`;
+    item.querySelector('textarea').name = `weekly_body_${i}`;
+    item.querySelector('.fw-semibold').textContent = `投稿 ${i + 1}`;
+  });
+  document.getElementById('weekly_count').value = items.length;
+}
+
+// 初期化
+document.querySelectorAll('input[name=plan_mode]').forEach(r => r.addEventListener('change', updatePlanMode));
+updatePlanMode();
+</script>
 {% endblock %}
