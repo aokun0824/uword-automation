@@ -125,6 +125,11 @@ def generate_post(config: dict, history: list[str], news: list[str]) -> tuple[st
     keyword_instruction = f"\n【必ず触れてほしいキーワード】\n{keyword_block}" if keyword_block else ""
     menu_instruction = f"\n【紹介したいメニュー・サービス（1つ選んで投稿に絡めてください）】\n{menu_block}" if menu_block else ""
 
+    prefix = post_cfg["prefix"].replace("\\n", "\n")
+    cta = profile.get("cta", "").strip()
+    # プレフィックスとCTA分を差し引いた実効文字数
+    effective_body_max = post_cfg["body_max"] - len(prefix) - len(cta) - 2  # 改行分
+
     prompt = f"""あなたは{profile['name']}のSNS担当スタッフです。
 {profile['name']}は、{profile['description']}。
 
@@ -136,11 +141,12 @@ def generate_post(config: dict, history: list[str], news: list[str]) -> tuple[st
 
 【出力形式】必ず以下の形式のみで出力（余計な説明・前置き・コメントは一切不要）：
 TITLE: （見出し・{post_cfg['title_max']}文字以内）
-BODY: （本文・{post_cfg['body_max']}文字以内）
+BODY: （本文・{effective_body_max}文字以内。必ず文章を完結させること）
 
 【重要な制約】
 - BODYの冒頭に「【この投稿はAIで自動投稿しています】」は絶対に含めないこと（システムが自動で付与します）
-- BODYの末尾は必ず「{profile['cta']}」で締めること
+- BODYの末尾に「{cta}」は含めないこと（システムが自動で付与します）
+- 文章は必ず完結させ、途中で切れないようにすること
 
 【文体・内容のルール】
 {tone_block}
@@ -187,13 +193,23 @@ BODY: （本文・{post_cfg['body_max']}文字以内）
     cta = config["profile"].get("cta", "").strip()
     prefix = post_cfg["prefix"].replace("\\n", "\n")
 
-    # CTA を末尾に確実に付与（すでに含んでいれば追加しない）
-    if cta and cta not in body:
-        body = body.rstrip("。．.！!") + "\n" + cta
+    # Claude が CTA を含めた場合は除去（システムが付与するため）
+    if cta and body.endswith(cta):
+        body = body[:-len(cta)].rstrip("\n")
 
-    body = prefix + body
-    if len(body) > post_cfg["body_max"]:
-        body = body[:post_cfg["body_max"]]
+    # 本文が長すぎる場合、文末で切る（途中切れ防止）
+    max_body_content = post_cfg["body_max"] - len(prefix) - len(cta) - 2
+    if len(body) > max_body_content:
+        body = body[:max_body_content]
+        # 最後の句点・改行で切る
+        for sep in ["。\n", "。", "\n", "！", "！\n"]:
+            pos = body.rfind(sep)
+            if pos > max_body_content // 2:
+                body = body[:pos + len(sep)]
+                break
+
+    # プレフィックス + 本文 + CTA を組み立て
+    body = prefix + body.rstrip("\n") + "\n" + cta if cta else prefix + body
 
     return title, body
 

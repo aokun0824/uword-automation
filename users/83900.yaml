@@ -24,7 +24,7 @@ rss:
   - https://news.google.com/rss/search?q=AI+便利+ツール&hl=ja&gl=JP&ceid=JP:ja
 ai:
   model: claude-haiku-4-5
-  max_tokens: 300
+  max_tokens: 500
 prompt:
   tone:
   - 友達に話しかけるような、自然でやわらかい口語調で書く
