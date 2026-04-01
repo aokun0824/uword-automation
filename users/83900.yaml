@@ -9,8 +9,8 @@ uword:
     pw_encrypted: gAAAAABpx7Ctv59ws9dtxzMHuasDKzb7rVWOti79UXlsDTC-noPs15EVhgUhgeBsKO8Xaie7JWOOgpH0NaD4ggbGRbAcVmmsUA==
 schedule:
   times:
-  - 09:00
-  - '18:38'
+  - 08:00
+  - '19:00'
   timezone: Asia/Tokyo
 post:
   title_max: 50
@@ -45,3 +45,5 @@ menu_items:
 next_post:
   title: ''
   body: ''
+plan_mode: ai
+weekly_posts: []
