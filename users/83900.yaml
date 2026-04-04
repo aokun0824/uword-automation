@@ -19,9 +19,10 @@ post:
   prefix: 【この投稿はAIで自動投稿しています】\n
 rss:
   feeds:
-  - https://news.google.com/rss/search?q=ChatGPT+使い方&hl=ja&gl=JP&ceid=JP:ja
-  - https://news.google.com/rss/search?q=生成AI+活用+初心者&hl=ja&gl=JP&ceid=JP:ja
-  - https://news.google.com/rss/search?q=AI+便利+ツール&hl=ja&gl=JP&ceid=JP:ja
+  - https://news.google.com/rss/search?q=生成AI+活用+中小企業&hl=ja&gl=JP&ceid=JP:ja
+  - https://news.google.com/rss/search?q=デジタル化+個人事業主+便利&hl=ja&gl=JP&ceid=JP:ja
+  - https://news.google.com/rss/search?q=HP制作+ホームページ+集客&hl=ja&gl=JP&ceid=JP:ja
+  - https://news.google.com/rss/search?q=AI+画像生成+デザイン&hl=ja&gl=JP&ceid=JP:ja
 ai:
   model: claude-haiku-4-5
   max_tokens: 500

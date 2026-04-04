@@ -29,7 +29,7 @@ import anthropic
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 
-def is_scheduled_now(config: dict, tolerance_minutes: int = 45) -> bool:
+def is_scheduled_now(config: dict, tolerance_minutes: int = 29) -> bool:
     """現在時刻がschedule.timesに該当するか判定する（±tolerance分の余裕）"""
     schedule = config.get("schedule", {})
     times = schedule.get("times", [])
@@ -130,8 +130,12 @@ def generate_post(config: dict, history: list[str], news: list[str]) -> tuple[st
     # プレフィックスとCTA分を差し引いた実効文字数
     effective_body_max = post_cfg["body_max"] - len(prefix) - len(cta) - 2  # 改行分
 
+    today = datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y年%m月%d日")
+
     prompt = f"""あなたは{profile['name']}のSNS担当スタッフです。
 {profile['name']}は、{profile['description']}。
+
+【今日の日付】{today}
 
 【今日の実際のAIニュース（RSS取得）】
 {news_block}
